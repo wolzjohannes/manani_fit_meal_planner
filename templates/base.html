@@ -11,7 +11,10 @@
 </head>
 <body>
   <nav class="navbar">
-    <a href="{{ url_for('index') }}" class="nav-brand">MANANI FIT</a>
+    <a href="{{ url_for('index') }}" class="nav-brand">
+      <img src="{{ url_for('static', filename='uploads/manani_fit_logo.png') }}" alt="MANANI FIT">
+      <span>MANANI FIT</span>
+    </a>
     <ul class="nav-links">
       <li><a href="{{ url_for('clients_list') }}" {% if request.endpoint and 'clients' in request.endpoint %}class="active"{% endif %}>Clients</a></li>
       <li><a href="{{ url_for('plans_new') }}" {% if request.endpoint and 'plans_new' in request.endpoint %}class="active"{% endif %}>Neuer Plan</a></li>

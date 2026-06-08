@@ -31,6 +31,9 @@ ruff format .
 
 # Typ-Prüfung
 mypy .
+
+# Seed-Daten auf ~500 Gerichte erweitern (nur nach DB-Reset ausführen)
+python scripts/expand_seed_data.py
 ```
 
 Kein Test-Framework vorhanden. `SECRET_KEY` per Env-Variable setzen (Fallback: unsicherer Dev-Key).
@@ -298,6 +301,7 @@ Anpassungen über `AppSettings` (`primary_color`, `secondary_color`) fließen nu
 |---|---|
 | **SQLite-Pfad** | Liegt in **Projekt-Root** (`manani_fit.db`), nicht in `instance/` — trotz Flask-Standard |
 | **Seed läuft nur einmal** | Guard: `FoodItem.query.count() == 0` in `database.py`; für Reset DB löschen |
+| **Datenbank erweitern** | `python scripts/expand_seed_data.py` → `rm manani_fit.db` → `python app.py` (Skript erweitert `data/seed_data.json` auf ~500 Gerichte) |
 | **`"leicht"`-Keyword** | Im Guideline-Text aktiviert 70%-Portionsreduktion — deutsch hardcoded in `planner.py` |
 | **Makro-Fallback** | Goal ohne passendes `MacroTemplate` → 35% P / 45% KH / 20% F (hardcoded) |
 | **WeasyPrint-Import** | Lazy import innerhalb der PDF-Route — nicht auf Top-Level verschieben |
