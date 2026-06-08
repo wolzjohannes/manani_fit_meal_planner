@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+</div>
+
+<div class="dashboard-grid">
+  <section class="card">
+    <h2>Schnellstart</h2>
+    <div class="quick-actions">
+      <a href="{{ url_for('plans_new') }}" class="btn btn--primary">+ Neuer Plan</a>
+      <a href="{{ url_for('clients_new') }}" class="btn btn--secondary">+ Neuer Client</a>
+      <a href="{{ url_for('dishes_new') }}" class="btn btn--secondary">+ Neues Gericht</a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Clients <span class="badge">{{ clients|length }}</span></h2>
+    {% if clients %}
+      <ul class="list-plain">
+        {% for c in clients[:8] %}
+          <li><a href="{{ url_for('clients_detail', client_id=c.id) }}">{{ c.name }}</a>
+            <span class="tag tag--{{ c.goal|lower|replace(' ', '-') }}">{{ c.goal }}</span>
+          </li>
+        {% endfor %}
+        {% if clients|length > 8 %}
+          <li><a href="{{ url_for('clients_list') }}">Alle anzeigen →</a></li>
+        {% endif %}
+      </ul>
+    {% else %}
+      <p class="empty-hint">Noch keine Clients angelegt.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Letzte Pläne</h2>
+    {% if recent_plans %}
+      <ul class="list-plain">
+        {% for p in recent_plans %}
+          <li>
+            <a href="{{ url_for('plans_edit', plan_id=p.id) }}">{{ p.name }}</a>
+            <span class="hint">{{ p.client.name }} · {{ p.date_created.strftime('%d.%m.%Y') }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-hint">Noch keine Pläne erstellt.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

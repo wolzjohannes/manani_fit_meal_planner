@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Neuer Plan · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Neuer Ernährungsplan</h1>
+</div>
+
+<form method="post" action="{{ url_for('plans_generate') }}" class="form-card" id="plan-creator">
+
+  <div class="form-section">
+    <h2>Client</h2>
+    <div class="form-grid">
+      <div class="form-group form-group--full">
+        <label for="client_id">Client auswählen *</label>
+        <select id="client_id" name="client_id" required
+                hx-get="{{ url_for('plans_new') }}"
+                hx-target="#client-info"
+                hx-include="#client_id"
+                hx-trigger="change">
+          <option value="">— bitte wählen —</option>
+          {% for c in clients %}
+            <option value="{{ c.id }}"
+              data-goal="{{ c.goal }}"
+              data-tags="{{ c.get_restriction_tags()|join(', ') }}"
+              {% if selected_client and selected_client.id == c.id %}selected{% endif %}>
+              {{ c.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="client-info" class="form-group--full">
+        {% if selected_client %}
+          <div class="info-box">
+            <strong>Ziel:</strong> {{ selected_client.goal }}&emsp;
+            {% set tags = selected_client.get_restriction_tags() %}
+            {% if tags %}
+              <strong>Einschränkungen:</strong>
+              {% for t in tags %}<span class="tag tag--restriction">{{ t }}</span>{% endfor %}
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Plan-Grunddaten</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="plan_name">Plan-Name</label>
+        <input type="text" id="plan_name" name="plan_name"
+               placeholder="z.B. Diät-Phase KW 23">
+      </div>
+      <div class="form-group">
+        <label for="kcal_target">Tageskalorien (kcal) *</label>
+        <input type="number" id="kcal_target" name="kcal_target"
+               required min="800" max="6000" step="50"
+               placeholder="z.B. 2400">
+      </div>
+      <div class="form-group">
+        <label for="n_meals">Anzahl Mahlzeiten *</label>
+        <input type="number" id="n_meals" name="n_meals"
+               required min="1" max="8" value="3"
+               hx-on:change="updateMealSlots(this.value)">
+      </div>
+      <div class="form-group">
+        <label for="goal">Fitness-Ziel</label>
+        <select id="goal" name="goal">
+          {% for g in ['Abnehmen', 'Muskelaufbau', 'Halten'] %}
+            <option value="{{ g }}"
+              {% if selected_client and selected_client.goal == g %}selected{% endif %}>
+              {{ g }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" name="include_supplements">
+          Supplement-Mahlzeit im PDF anzeigen
+        </label>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="notes">Notizen</label>
+        <textarea id="notes" name="notes" rows="2" placeholder="Interne Notizen..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Mahlzeiten-Richtlinien <small>(optional)</small></h2>
+    <div id="meal-slots">
+      {% for i in range(1, 4) %}
+        <div class="meal-slot-row">
+          <span class="meal-slot-num">Mahlzeit {{ i }}</span>
+          <input type="text" name="label_{{ i }}" placeholder="Label (z.B. Frühstück)" style="width:180px">
+          <input type="text" name="guidelines_{{ i }}"
+                 placeholder="Richtlinie (z.B. leicht, vegetarisch, schnelle Zubereitung)">
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn--primary btn--lg">Plan generieren</button>
+    <a href="{{ url_for('index') }}" class="btn btn--ghost">Abbrechen</a>
+  </div>
+</form>
+
+<script>
+function updateMealSlots(n) {
+  n = parseInt(n) || 3;
+  const container = document.getElementById('meal-slots');
+  container.innerHTML = '';
+  for (let i = 1; i <= n; i++) {
+    container.innerHTML += `
+      <div class="meal-slot-row">
+        <span class="meal-slot-num">Mahlzeit ${i}</span>
+        <input type="text" name="label_${i}" placeholder="Label (z.B. Frühstück)" style="width:180px">
+        <input type="text" name="guidelines_${i}"
+               placeholder="Richtlinie (z.B. leicht, vegetarisch, schnelle Zubereitung)">
+      </div>`;
+  }
+}
+
+document.getElementById('client_id').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  const goal = opt.dataset.goal || '';
+  const tags = opt.dataset.tags || '';
+  const info = document.getElementById('client-info');
+  if (goal) {
+    let html = `<div class="info-box"><strong>Ziel:</strong> ${goal}`;
+    if (tags) {
+      html += `&emsp;<strong>Einschränkungen:</strong> `;
+      tags.split(',').forEach(t => {
+        t = t.trim();
+        if (t) html += `<span class="tag tag--restriction">${t}</span>`;
+      });
+    }
+    html += '</div>';
+    info.innerHTML = html;
+    document.getElementById('goal').value = goal;
+  } else {
+    info.innerHTML = '';
+  }
+});
+</script>
+{% endblock %}

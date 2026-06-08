@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ client.name }}</h1>
+  <div class="header-actions">
+    <a href="{{ url_for('plans_new', client_id=client.id) }}" class="btn btn--primary">+ Neuer Plan</a>
+    <a href="{{ url_for('clients_edit', client_id=client.id) }}" class="btn btn--secondary">Bearbeiten</a>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <section class="card">
+    <h2>Stammdaten</h2>
+    <dl class="detail-list">
+      <dt>E-Mail</dt><dd>{{ client.email or '—' }}</dd>
+      <dt>Telefon</dt><dd>{{ client.phone or '—' }}</dd>
+      <dt>Geschlecht</dt><dd>{{ client.gender or '—' }}</dd>
+      <dt>Geburtstag</dt><dd>{{ client.birthdate.strftime('%d.%m.%Y') if client.birthdate else '—' }}</dd>
+      <dt>Gewicht</dt><dd>{{ (client.weight_kg|string + ' kg') if client.weight_kg else '—' }}</dd>
+      <dt>Größe</dt><dd>{{ (client.height_cm|int|string + ' cm') if client.height_cm else '—' }}</dd>
+      <dt>Ziel</dt><dd><span class="tag">{{ client.goal }}</span></dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Einschränkungen</h2>
+    <div class="tags-wrap">
+      {% for tag in client.get_restriction_tags() %}
+        <span class="tag tag--restriction">{{ tag }}</span>
+      {% else %}
+        <p class="empty-hint">Keine Einschränkungen.</p>
+      {% endfor %}
+    </div>
+    {% if client.restrictions_text %}
+      <p class="hint" style="margin-top:0.75rem">{{ client.restrictions_text }}</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card" style="margin-top:1.5rem">
+  <h2>Plan-Historie <span class="badge">{{ plans|length }}</span></h2>
+  {% if plans %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Name</th><th>Datum</th><th>Kalorien</th><th>Ziel</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for p in plans %}
+          <tr>
+            <td><a href="{{ url_for('plans_edit', plan_id=p.id) }}">{{ p.name }}</a></td>
+            <td>{{ p.date_created.strftime('%d.%m.%Y') }}</td>
+            <td>{{ p.kcal_target }} kcal</td>
+            <td>{{ p.goal }}</td>
+            <td><span class="badge badge--{{ p.status }}">{{ p.status }}</span></td>
+            <td class="actions">
+              <a href="{{ url_for('plans_edit', plan_id=p.id) }}" class="btn btn--sm">Öffnen</a>
+              <a href="{{ url_for('plans_pdf', plan_id=p.id) }}" class="btn btn--sm btn--primary">PDF</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-hint">Noch keine Pläne für diesen Client.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Einstellungen</h1>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-card">
+
+  <div class="form-section">
+    <h2>Branding (PDF-Design)</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="coach_name">Coach / Markenname</label>
+        <input type="text" id="coach_name" name="coach_name"
+               value="{{ settings.coach_name or '' }}">
+      </div>
+      <div class="form-group">
+        <label for="coach_contact">Kontakt (für PDF-Footer)</label>
+        <input type="text" id="coach_contact" name="coach_contact"
+               value="{{ settings.coach_contact or '' }}"
+               placeholder="E-Mail oder Telefon">
+      </div>
+      <div class="form-group">
+        <label for="primary_color">Primärfarbe</label>
+        <div style="display:flex; gap:.5rem; align-items:center">
+          <input type="color" id="primary_color" name="primary_color"
+                 value="{{ settings.primary_color or '#2D6A4F' }}" style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
+          <input type="text" name="primary_color_text" value="{{ settings.primary_color or '#2D6A4F' }}"
+                 style="width:90px" oninput="document.getElementById('primary_color').value=this.value">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="secondary_color">Sekundärfarbe</label>
+        <div style="display:flex; gap:.5rem; align-items:center">
+          <input type="color" id="secondary_color" name="secondary_color"
+                 value="{{ settings.secondary_color or '#95D5B2' }}" style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
+          <input type="text" name="secondary_color_text" value="{{ settings.secondary_color or '#95D5B2' }}"
+                 style="width:90px" oninput="document.getElementById('secondary_color').value=this.value">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="font_family">Schriftart</label>
+        <select id="font_family" name="font_family">
+          {% for f in ['Inter', 'Montserrat', 'Raleway', 'Open Sans'] %}
+            <option value="{{ f }}" {% if settings.font_family == f %}selected{% endif %}>{{ f }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="logo_file">Logo hochladen (PNG/JPG, max. 5 MB)</label>
+        <input type="file" id="logo_file" name="logo_file" accept=".png,.jpg,.jpeg">
+        {% if settings.logo_path %}
+          <small>Aktuell: {{ settings.logo_path }}</small>
+        {% endif %}
+      </div>
+      <div class="form-group form-group--full">
+        <label for="disclaimer_text">Disclaimer-Text</label>
+        <textarea id="disclaimer_text" name="disclaimer_text" rows="4">{{ settings.disclaimer_text or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Portionsgrenzen</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="portion_min_g">Mindestportion (g)</label>
+        <input type="number" id="portion_min_g" name="portion_min_g" min="50" max="500"
+               value="{{ settings.portion_min_g or '150' }}">
+      </div>
+      <div class="form-group">
+        <label for="portion_max_g">Maximalportion (g)</label>
+        <input type="number" id="portion_max_g" name="portion_max_g" min="300" max="3000"
+               value="{{ settings.portion_max_g or '1200' }}">
+      </div>
+      <div class="form-group">
+        <label for="macro_tolerance_pct">Makro-Toleranz (%)</label>
+        <input type="number" id="macro_tolerance_pct" name="macro_tolerance_pct" min="1" max="20"
+               value="{{ settings.macro_tolerance_pct or '5' }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Makro-Templates</h2>
+    <table class="data-table">
+      <thead>
+        <tr><th>Ziel</th><th>Protein %</th><th>KH %</th><th>Fett %</th><th>Summe</th></tr>
+      </thead>
+      <tbody>
+        {% for tmpl in macro_templates %}
+        <tr>
+          <td><strong>{{ tmpl.goal_name }}</strong></td>
+          <td><input type="number" name="protein_{{ tmpl.goal_name }}" value="{{ tmpl.protein_pct|round|int }}" min="10" max="60" style="width:70px"></td>
+          <td><input type="number" name="carbs_{{ tmpl.goal_name }}" value="{{ tmpl.carbs_pct|round|int }}" min="10" max="70" style="width:70px"></td>
+          <td><input type="number" name="fat_{{ tmpl.goal_name }}" value="{{ tmpl.fat_pct|round|int }}" min="10" max="50" style="width:70px"></td>
+          <td>{{ (tmpl.protein_pct + tmpl.carbs_pct + tmpl.fat_pct)|round|int }} %</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn--primary">Speichern</button>
+  </div>
+</form>
+{% endblock %}

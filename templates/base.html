@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}MANANI FIT Meal Planner{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-brand">MANANI FIT</a>
+    <ul class="nav-links">
+      <li><a href="{{ url_for('clients_list') }}" {% if request.endpoint and 'clients' in request.endpoint %}class="active"{% endif %}>Clients</a></li>
+      <li><a href="{{ url_for('plans_new') }}" {% if request.endpoint and 'plans_new' in request.endpoint %}class="active"{% endif %}>Neuer Plan</a></li>
+      <li><a href="{{ url_for('dishes_list') }}" {% if request.endpoint and 'dishes' in request.endpoint %}class="active"{% endif %}>Gerichte</a></li>
+      <li><a href="{{ url_for('settings_view') }}" {% if request.endpoint == 'settings_view' %}class="active"{% endif %}>Einstellungen</a></li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash flash--{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

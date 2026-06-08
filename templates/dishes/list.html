@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Gerichte · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Gerichte</h1>
+  <a href="{{ url_for('dishes_new') }}" class="btn btn--primary">+ Neues Gericht</a>
+</div>
+
+<form method="get" class="filter-bar">
+  <select name="category" onchange="this.form.submit()">
+    <option value="">Alle Kategorien</option>
+    {% for val, label in categories %}
+      <option value="{{ val }}" {% if selected_category == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="text" name="search" value="{{ search }}" placeholder="Suche nach Name...">
+  <button type="submit" class="btn btn--secondary">Suchen</button>
+</form>
+
+{% if dishes %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Kategorie</th>
+          <th>Tags</th>
+          <th>Basis kcal</th>
+          <th>Protein</th>
+          <th>KH</th>
+          <th>Fett</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dishes %}
+        <tr>
+          <td>{{ d.name }}</td>
+          <td>{{ d.category|category_label }}</td>
+          <td>
+            {% for tag in d.get_tags()[:3] %}
+              <span class="tag tag--sm">{{ tag }}</span>
+            {% endfor %}
+          </td>
+          <td class="text-right">{{ d.base_kcal|round|int }}</td>
+          <td class="text-right">{{ d.base_protein_g|round(1) }} g</td>
+          <td class="text-right">{{ d.base_carbs_g|round(1) }} g</td>
+          <td class="text-right">{{ d.base_fat_g|round(1) }} g</td>
+          <td class="actions">
+            <a href="{{ url_for('dishes_edit', dish_id=d.id) }}" class="btn btn--sm">Bearbeiten</a>
+            <form method="post" action="{{ url_for('dishes_delete', dish_id=d.id) }}" style="display:inline"
+                  onsubmit="return confirm('Gericht löschen?')">
+              <button type="submit" class="btn btn--sm btn--danger">Löschen</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="empty-hint">Keine Gerichte gefunden.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{% if dish %}{{ dish.name }} bearbeiten{% else %}Neues Gericht{% endif %} · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{% if dish %}Gericht bearbeiten{% else %}Neues Gericht{% endif %}</h1>
+</div>
+
+<form method="post" class="form-card" id="dish-form">
+  <div class="form-section">
+    <h2>Grunddaten</h2>
+    <div class="form-grid">
+      <div class="form-group form-group--full">
+        <label for="name">Name *</label>
+        <input type="text" id="name" name="name" required
+               value="{{ dish.name if dish else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="category">Kategorie *</label>
+        <select id="category" name="category" required>
+          {% for val, label in [
+            ('breakfast','Frühstück'), ('lunch','Mittagessen'),
+            ('dinner','Abendessen'), ('snack','Snack'), ('supplement','Supplement')
+          ] %}
+            <option value="{{ val }}" {% if dish and dish.category == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group form-group--full">
+        <label for="tags">Tags (kommagetrennt)</label>
+        <input type="text" id="tags" name="tags"
+               placeholder="z.B. vegetarisch, high-protein, glutenfrei"
+               value="{{ dish.get_tags()|join(', ') if dish else '' }}">
+      </div>
+      <div class="form-group form-group--full">
+        <label for="description">Beschreibung</label>
+        <textarea id="description" name="description" rows="2">{{ dish.description or '' if dish else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Zutaten</h2>
+    <div id="ingredients-list">
+      {% if dish %}
+        {% for di in dish.dish_ingredients %}
+          <div class="ingredient-row">
+            <select name="fi_id[]" class="select-food-item">
+              {% for fi in food_items %}
+                <option value="{{ fi.id }}" {% if fi.id == di.food_item_id %}selected{% endif %}>
+                  {{ fi.name }} ({{ fi.kcal_per_100g }} kcal/100g)
+                </option>
+              {% endfor %}
+            </select>
+            <input type="number" name="fi_amount[]" value="{{ di.base_amount_g|round|int }}"
+                   min="1" max="2000" step="1" style="width:90px"> g
+            <button type="button" class="btn btn--sm btn--danger" onclick="this.parentElement.remove()">✕</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <button type="button" class="btn btn--secondary" id="add-ingredient" style="margin-top:.75rem">
+      + Zutat hinzufügen
+    </button>
+
+    <!-- Template für neue Zeilen -->
+    <template id="ingredient-template">
+      <div class="ingredient-row">
+        <select name="fi_id[]" class="select-food-item">
+          {% for fi in food_items %}
+            <option value="{{ fi.id }}">{{ fi.name }} ({{ fi.kcal_per_100g }} kcal/100g)</option>
+          {% endfor %}
+        </select>
+        <input type="number" name="fi_amount[]" value="100" min="1" max="2000" step="1" style="width:90px"> g
+        <button type="button" class="btn btn--sm btn--danger" onclick="this.parentElement.remove()">✕</button>
+      </div>
+    </template>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn--primary">Speichern</button>
+    <a href="{{ url_for('dishes_list') }}" class="btn btn--ghost">Abbrechen</a>
+  </div>
+</form>
+
+<script>
+document.getElementById('add-ingredient').addEventListener('click', function() {
+  const tpl = document.getElementById('ingredient-template');
+  const clone = tpl.content.cloneNode(true);
+  document.getElementById('ingredients-list').appendChild(clone);
+});
+</script>
+{% endblock %}

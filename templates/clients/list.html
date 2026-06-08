@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Clients · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Clients</h1>
+  <div class="header-actions">
+    <a href="{{ url_for('clients_new') }}" class="btn btn--primary">+ Neuer Client</a>
+    {% if show_archived %}
+      <a href="{{ url_for('clients_list') }}" class="btn btn--ghost">Aktive anzeigen</a>
+    {% else %}
+      <a href="{{ url_for('clients_list', archived=1) }}" class="btn btn--ghost">Archivierte anzeigen</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if clients %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Ziel</th>
+          <th>Gewicht</th>
+          <th>Einschränkungen</th>
+          <th>Pläne</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr>
+          <td><a href="{{ url_for('clients_detail', client_id=c.id) }}">{{ c.name }}</a></td>
+          <td><span class="tag">{{ c.goal }}</span></td>
+          <td>{% if c.weight_kg %}{{ c.weight_kg|int }} kg{% else %}—{% endif %}</td>
+          <td>
+            {% for tag in c.get_restriction_tags() %}
+              <span class="tag tag--restriction">{{ tag }}</span>
+            {% endfor %}
+          </td>
+          <td>{{ c.plans.count() }}</td>
+          <td class="actions">
+            <a href="{{ url_for('clients_edit', client_id=c.id) }}" class="btn btn--sm">Bearbeiten</a>
+            <a href="{{ url_for('plans_new', client_id=c.id) }}" class="btn btn--sm btn--primary">+ Plan</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="empty-hint">Keine Clients gefunden.</p>
+{% endif %}
+{% endblock %}

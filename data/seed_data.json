@@ -1,0 +1,321 @@
+{
+  "food_items": [
+    {"name": "Haferflocken", "kcal_per_100g": 372, "protein_per_100g": 13.5, "carbs_per_100g": 59.0, "fat_per_100g": 7.0, "allergens": ["gluten"]},
+    {"name": "Skyr natur", "kcal_per_100g": 63, "protein_per_100g": 11.0, "carbs_per_100g": 4.0, "fat_per_100g": 0.2, "allergens": ["milch"]},
+    {"name": "Blaubeeren", "kcal_per_100g": 57, "protein_per_100g": 0.7, "carbs_per_100g": 14.5, "fat_per_100g": 0.3, "allergens": []},
+    {"name": "Honig", "kcal_per_100g": 304, "protein_per_100g": 0.3, "carbs_per_100g": 82.0, "fat_per_100g": 0.0, "allergens": []},
+    {"name": "Proteinpulver Vanille", "kcal_per_100g": 380, "protein_per_100g": 75.0, "carbs_per_100g": 10.0, "fat_per_100g": 5.0, "allergens": ["milch", "soja"], "is_supplement": true},
+    {"name": "Eier", "kcal_per_100g": 155, "protein_per_100g": 13.0, "carbs_per_100g": 1.1, "fat_per_100g": 11.0, "allergens": ["ei"]},
+    {"name": "Magerquark", "kcal_per_100g": 67, "protein_per_100g": 12.0, "carbs_per_100g": 4.1, "fat_per_100g": 0.3, "allergens": ["milch"]},
+    {"name": "Protein-Flavour Drops", "kcal_per_100g": 350, "protein_per_100g": 80.0, "carbs_per_100g": 5.0, "fat_per_100g": 2.0, "allergens": ["milch"], "is_supplement": true},
+    {"name": "Milch 1,5%", "kcal_per_100g": 46, "protein_per_100g": 3.4, "carbs_per_100g": 4.8, "fat_per_100g": 1.5, "allergens": ["milch"]},
+    {"name": "Hähnchenbrust", "kcal_per_100g": 110, "protein_per_100g": 23.0, "carbs_per_100g": 0.0, "fat_per_100g": 2.5, "allergens": []},
+    {"name": "Basmati-Reis (roh)", "kcal_per_100g": 349, "protein_per_100g": 7.5, "carbs_per_100g": 77.0, "fat_per_100g": 0.5, "allergens": []},
+    {"name": "Brokkoli", "kcal_per_100g": 34, "protein_per_100g": 3.0, "carbs_per_100g": 5.0, "fat_per_100g": 0.4, "allergens": []},
+    {"name": "Olivenöl", "kcal_per_100g": 884, "protein_per_100g": 0.0, "carbs_per_100g": 0.0, "fat_per_100g": 100.0, "allergens": []},
+    {"name": "Weizenmehl Typ 405", "kcal_per_100g": 345, "protein_per_100g": 10.0, "carbs_per_100g": 72.0, "fat_per_100g": 1.0, "allergens": ["gluten", "weizen"]},
+    {"name": "Paprika rot", "kcal_per_100g": 31, "protein_per_100g": 1.0, "carbs_per_100g": 7.0, "fat_per_100g": 0.2, "allergens": []},
+    {"name": "Vollkorn-Wraps", "kcal_per_100g": 270, "protein_per_100g": 9.0, "carbs_per_100g": 47.0, "fat_per_100g": 5.0, "allergens": ["gluten", "weizen"]},
+    {"name": "Tomaten-Passata", "kcal_per_100g": 35, "protein_per_100g": 2.0, "carbs_per_100g": 6.0, "fat_per_100g": 0.2, "allergens": []},
+    {"name": "Mozzarella light", "kcal_per_100g": 185, "protein_per_100g": 18.0, "carbs_per_100g": 2.5, "fat_per_100g": 11.0, "allergens": ["milch"]},
+    {"name": "Hirse (roh)", "kcal_per_100g": 360, "protein_per_100g": 11.0, "carbs_per_100g": 72.0, "fat_per_100g": 4.0, "allergens": []},
+    {"name": "Zucchini", "kcal_per_100g": 17, "protein_per_100g": 1.2, "carbs_per_100g": 2.0, "fat_per_100g": 0.3, "allergens": []},
+    {"name": "Reisnudeln", "kcal_per_100g": 364, "protein_per_100g": 7.0, "carbs_per_100g": 80.0, "fat_per_100g": 0.5, "allergens": []},
+    {"name": "Sojasoße", "kcal_per_100g": 60, "protein_per_100g": 5.5, "carbs_per_100g": 8.0, "fat_per_100g": 0.1, "allergens": ["soja", "gluten"]},
+    {"name": "Ingwer frisch", "kcal_per_100g": 80, "protein_per_100g": 1.8, "carbs_per_100g": 18.0, "fat_per_100g": 0.8, "allergens": []},
+    {"name": "Thunfisch im eigenen Saft", "kcal_per_100g": 108, "protein_per_100g": 24.0, "carbs_per_100g": 0.0, "fat_per_100g": 1.0, "allergens": ["fisch"]},
+    {"name": "Eisbergsalat", "kcal_per_100g": 14, "protein_per_100g": 0.9, "carbs_per_100g": 2.0, "fat_per_100g": 0.2, "allergens": []},
+    {"name": "Gurke", "kcal_per_100g": 12, "protein_per_100g": 0.6, "carbs_per_100g": 1.8, "fat_per_100g": 0.1, "allergens": []},
+    {"name": "Fetakäse light", "kcal_per_100g": 185, "protein_per_100g": 14.0, "carbs_per_100g": 1.5, "fat_per_100g": 13.5, "allergens": ["milch"]},
+    {"name": "Oliven", "kcal_per_100g": 145, "protein_per_100g": 1.0, "carbs_per_100g": 3.5, "fat_per_100g": 15.0, "allergens": []},
+    {"name": "Rote Linsen (roh)", "kcal_per_100g": 353, "protein_per_100g": 24.0, "carbs_per_100g": 60.0, "fat_per_100g": 1.5, "allergens": []},
+    {"name": "Möhren", "kcal_per_100g": 35, "protein_per_100g": 0.9, "carbs_per_100g": 7.0, "fat_per_100g": 0.2, "allergens": []},
+    {"name": "Sellerie", "kcal_per_100g": 16, "protein_per_100g": 0.7, "carbs_per_100g": 2.8, "fat_per_100g": 0.1, "allergens": ["sellerie"]},
+    {"name": "Süßkartoffel", "kcal_per_100g": 86, "protein_per_100g": 1.6, "carbs_per_100g": 20.0, "fat_per_100g": 0.1, "allergens": []},
+    {"name": "Sesamöl", "kcal_per_100g": 884, "protein_per_100g": 0.0, "carbs_per_100g": 0.0, "fat_per_100g": 100.0, "allergens": ["sesam"]},
+    {"name": "Tofu natur", "kcal_per_100g": 76, "protein_per_100g": 8.0, "carbs_per_100g": 1.9, "fat_per_100g": 4.5, "allergens": ["soja"]},
+    {"name": "Backpulver", "kcal_per_100g": 53, "protein_per_100g": 0.0, "carbs_per_100g": 12.0, "fat_per_100g": 0.0, "allergens": []},
+    {"name": "Spinat frisch", "kcal_per_100g": 23, "protein_per_100g": 2.9, "carbs_per_100g": 1.4, "fat_per_100g": 0.4, "allergens": []},
+    {"name": "Cottage Cheese", "kcal_per_100g": 98, "protein_per_100g": 11.0, "carbs_per_100g": 3.4, "fat_per_100g": 4.3, "allergens": ["milch"]},
+    {"name": "Erdbeeren", "kcal_per_100g": 32, "protein_per_100g": 0.7, "carbs_per_100g": 7.7, "fat_per_100g": 0.3, "allergens": []},
+    {"name": "Banane", "kcal_per_100g": 89, "protein_per_100g": 1.1, "carbs_per_100g": 23.0, "fat_per_100g": 0.3, "allergens": []},
+    {"name": "Wasser", "kcal_per_100g": 0, "protein_per_100g": 0.0, "carbs_per_100g": 0.0, "fat_per_100g": 0.0, "allergens": []},
+    {"name": "Gewürze (gemischt)", "kcal_per_100g": 30, "protein_per_100g": 1.5, "carbs_per_100g": 5.0, "fat_per_100g": 0.5, "allergens": []}
+  ],
+  "dishes": [
+    {
+      "name": "Overnight Oats mit Skyr",
+      "category": "breakfast",
+      "description": "Haferflocken über Nacht in Skyr und Milch eingeweicht, mit Früchten.",
+      "tags": ["vegetarisch", "laktose", "gluten", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Haferflocken", "base_amount_g": 80},
+        {"food_item": "Skyr natur", "base_amount_g": 150},
+        {"food_item": "Milch 1,5%", "base_amount_g": 100},
+        {"food_item": "Blaubeeren", "base_amount_g": 80},
+        {"food_item": "Honig", "base_amount_g": 10}
+      ]
+    },
+    {
+      "name": "Rührei / Omelett",
+      "category": "breakfast",
+      "description": "Klassisches Rührei oder Omelett mit Gemüse.",
+      "tags": ["vegetarisch", "ei", "low-carb", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Eier", "base_amount_g": 200},
+        {"food_item": "Spinat frisch", "base_amount_g": 60},
+        {"food_item": "Paprika rot", "base_amount_g": 50},
+        {"food_item": "Olivenöl", "base_amount_g": 8}
+      ]
+    },
+    {
+      "name": "Magerquark mit Protein-Flavour",
+      "category": "snack",
+      "description": "Magerquark mit Protein-Flavour-Drops für süßen Geschmack.",
+      "tags": ["vegetarisch", "laktose", "low-carb", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Magerquark", "base_amount_g": 250},
+        {"food_item": "Protein-Flavour Drops", "base_amount_g": 10},
+        {"food_item": "Blaubeeren", "base_amount_g": 60}
+      ]
+    },
+    {
+      "name": "Protein-Shake (Basis-Rezept)",
+      "category": "supplement",
+      "description": "Proteinshake mit Milch oder Wasser.",
+      "tags": ["supplement", "schnelle Zubereitung", "laktose"],
+      "ingredients": [
+        {"food_item": "Proteinpulver Vanille", "base_amount_g": 30},
+        {"food_item": "Milch 1,5%", "base_amount_g": 300}
+      ]
+    },
+    {
+      "name": "Hähnchenbrust mit Reis und Gemüsebowl",
+      "category": "lunch",
+      "description": "Gegrillte Hähnchenbrust mit Basmati-Reis und Brokkoli.",
+      "tags": ["high-protein", "meal-prep"],
+      "ingredients": [
+        {"food_item": "Hähnchenbrust", "base_amount_g": 200},
+        {"food_item": "Basmati-Reis (roh)", "base_amount_g": 80},
+        {"food_item": "Brokkoli", "base_amount_g": 150},
+        {"food_item": "Olivenöl", "base_amount_g": 10},
+        {"food_item": "Gewürze (gemischt)", "base_amount_g": 5}
+      ]
+    },
+    {
+      "name": "Protein-Wraps mit Hähnchen",
+      "category": "lunch",
+      "description": "Vollkorn-Wraps gefüllt mit Hähnchen, Paprika und Salat.",
+      "tags": ["high-protein", "gluten", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Vollkorn-Wraps", "base_amount_g": 80},
+        {"food_item": "Hähnchenbrust", "base_amount_g": 150},
+        {"food_item": "Paprika rot", "base_amount_g": 80},
+        {"food_item": "Eisbergsalat", "base_amount_g": 40},
+        {"food_item": "Magerquark", "base_amount_g": 50}
+      ]
+    },
+    {
+      "name": "Proteinpizza",
+      "category": "dinner",
+      "description": "Pizza mit Quark-Teig, Tomaten-Passata und leichtem Mozzarella.",
+      "tags": ["vegetarisch", "laktose", "gluten", "high-protein"],
+      "ingredients": [
+        {"food_item": "Magerquark", "base_amount_g": 200},
+        {"food_item": "Weizenmehl Typ 405", "base_amount_g": 80},
+        {"food_item": "Eier", "base_amount_g": 50},
+        {"food_item": "Backpulver", "base_amount_g": 5},
+        {"food_item": "Tomaten-Passata", "base_amount_g": 100},
+        {"food_item": "Mozzarella light", "base_amount_g": 80},
+        {"food_item": "Paprika rot", "base_amount_g": 60}
+      ]
+    },
+    {
+      "name": "Hirse mit Gemüse",
+      "category": "lunch",
+      "description": "Gekochte Hirse mit sautiertem Gemüse und Gewürzen.",
+      "tags": ["vegetarisch", "vegan", "glutenfrei", "high-carb"],
+      "ingredients": [
+        {"food_item": "Hirse (roh)", "base_amount_g": 100},
+        {"food_item": "Zucchini", "base_amount_g": 120},
+        {"food_item": "Paprika rot", "base_amount_g": 80},
+        {"food_item": "Möhren", "base_amount_g": 80},
+        {"food_item": "Olivenöl", "base_amount_g": 10},
+        {"food_item": "Gewürze (gemischt)", "base_amount_g": 5}
+      ]
+    },
+    {
+      "name": "Asiatisches Gemüse mit Reisnudeln",
+      "category": "dinner",
+      "description": "Reisnudeln mit Gemüse, Ingwer und Sojasoße.",
+      "tags": ["vegetarisch", "vegan", "glutenfrei", "soja"],
+      "ingredients": [
+        {"food_item": "Reisnudeln", "base_amount_g": 80},
+        {"food_item": "Brokkoli", "base_amount_g": 120},
+        {"food_item": "Paprika rot", "base_amount_g": 80},
+        {"food_item": "Sojasoße", "base_amount_g": 20},
+        {"food_item": "Ingwer frisch", "base_amount_g": 10},
+        {"food_item": "Sesamöl", "base_amount_g": 8}
+      ]
+    },
+    {
+      "name": "Magerquark-Bowl (herzhaft)",
+      "category": "snack",
+      "description": "Magerquark herzhaft gewürzt mit Gurke und Tomaten.",
+      "tags": ["vegetarisch", "laktose", "low-carb", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Magerquark", "base_amount_g": 200},
+        {"food_item": "Gurke", "base_amount_g": 80},
+        {"food_item": "Gewürze (gemischt)", "base_amount_g": 5}
+      ]
+    },
+    {
+      "name": "Chunky-Flavour Protein-Bowl",
+      "category": "breakfast",
+      "description": "Protein-Shake dick angerührt mit Skyr und Früchten.",
+      "tags": ["high-protein", "laktose", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Proteinpulver Vanille", "base_amount_g": 30},
+        {"food_item": "Skyr natur", "base_amount_g": 150},
+        {"food_item": "Erdbeeren", "base_amount_g": 100},
+        {"food_item": "Banane", "base_amount_g": 60}
+      ]
+    },
+    {
+      "name": "Thunfisch-Reis-Bowl",
+      "category": "lunch",
+      "description": "Thunfisch über Basmati-Reis mit Gurke und Sojasoße.",
+      "tags": ["high-protein", "fisch", "meal-prep"],
+      "ingredients": [
+        {"food_item": "Thunfisch im eigenen Saft", "base_amount_g": 150},
+        {"food_item": "Basmati-Reis (roh)", "base_amount_g": 80},
+        {"food_item": "Gurke", "base_amount_g": 80},
+        {"food_item": "Sojasoße", "base_amount_g": 15},
+        {"food_item": "Sesamöl", "base_amount_g": 5}
+      ]
+    },
+    {
+      "name": "Griechischer Salat mit Hähnchen",
+      "category": "lunch",
+      "description": "Klassischer griechischer Salat mit gegrillter Hähnchenbrust.",
+      "tags": ["high-protein", "laktose", "low-carb", "mediterran"],
+      "ingredients": [
+        {"food_item": "Hähnchenbrust", "base_amount_g": 150},
+        {"food_item": "Eisbergsalat", "base_amount_g": 100},
+        {"food_item": "Gurke", "base_amount_g": 80},
+        {"food_item": "Tomaten-Passata", "base_amount_g": 60},
+        {"food_item": "Fetakäse light", "base_amount_g": 50},
+        {"food_item": "Oliven", "base_amount_g": 30},
+        {"food_item": "Olivenöl", "base_amount_g": 10}
+      ]
+    },
+    {
+      "name": "Linseneintopf",
+      "category": "dinner",
+      "description": "Roter Linseneintopf mit Möhren, Sellerie und Gewürzen.",
+      "tags": ["vegetarisch", "vegan", "glutenfrei", "high-protein", "meal-prep"],
+      "ingredients": [
+        {"food_item": "Rote Linsen (roh)", "base_amount_g": 100},
+        {"food_item": "Möhren", "base_amount_g": 80},
+        {"food_item": "Sellerie", "base_amount_g": 60},
+        {"food_item": "Tomaten-Passata", "base_amount_g": 100},
+        {"food_item": "Olivenöl", "base_amount_g": 8},
+        {"food_item": "Gewürze (gemischt)", "base_amount_g": 5}
+      ]
+    },
+    {
+      "name": "Süßkartoffel mit Hähnchen",
+      "category": "dinner",
+      "description": "Gebackene Süßkartoffel mit gegrillter Hähnchenbrust und Brokkoli.",
+      "tags": ["high-protein", "glutenfrei", "meal-prep"],
+      "ingredients": [
+        {"food_item": "Süßkartoffel", "base_amount_g": 200},
+        {"food_item": "Hähnchenbrust", "base_amount_g": 180},
+        {"food_item": "Brokkoli", "base_amount_g": 120},
+        {"food_item": "Olivenöl", "base_amount_g": 10},
+        {"food_item": "Gewürze (gemischt)", "base_amount_g": 5}
+      ]
+    },
+    {
+      "name": "Reisnudeln mit Tofu (vegetarisch)",
+      "category": "dinner",
+      "description": "Gebratener Tofu mit Reisnudeln und Gemüse asiatisch.",
+      "tags": ["vegetarisch", "vegan", "glutenfrei", "soja"],
+      "ingredients": [
+        {"food_item": "Reisnudeln", "base_amount_g": 80},
+        {"food_item": "Tofu natur", "base_amount_g": 150},
+        {"food_item": "Brokkoli", "base_amount_g": 100},
+        {"food_item": "Sojasoße", "base_amount_g": 20},
+        {"food_item": "Sesamöl", "base_amount_g": 8},
+        {"food_item": "Ingwer frisch", "base_amount_g": 8}
+      ]
+    },
+    {
+      "name": "Quark-Pancakes",
+      "category": "breakfast",
+      "description": "Fluffige Pancakes aus Magerquark, Eiern und wenig Mehl.",
+      "tags": ["vegetarisch", "laktose", "ei", "high-protein"],
+      "ingredients": [
+        {"food_item": "Magerquark", "base_amount_g": 150},
+        {"food_item": "Eier", "base_amount_g": 100},
+        {"food_item": "Weizenmehl Typ 405", "base_amount_g": 40},
+        {"food_item": "Backpulver", "base_amount_g": 3},
+        {"food_item": "Blaubeeren", "base_amount_g": 80},
+        {"food_item": "Honig", "base_amount_g": 10}
+      ]
+    },
+    {
+      "name": "Gemüse-Omelett",
+      "category": "breakfast",
+      "description": "Herzhaftes Omelett mit Spinat, Paprika und Gewürzen.",
+      "tags": ["vegetarisch", "ei", "low-carb", "glutenfrei", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Eier", "base_amount_g": 200},
+        {"food_item": "Spinat frisch", "base_amount_g": 80},
+        {"food_item": "Paprika rot", "base_amount_g": 60},
+        {"food_item": "Olivenöl", "base_amount_g": 8},
+        {"food_item": "Gewürze (gemischt)", "base_amount_g": 3}
+      ]
+    },
+    {
+      "name": "Haferbrei (Porridge)",
+      "category": "breakfast",
+      "description": "Klassischer Haferbrei mit Milch, Banane und Honig.",
+      "tags": ["vegetarisch", "laktose", "gluten", "high-carb"],
+      "ingredients": [
+        {"food_item": "Haferflocken", "base_amount_g": 80},
+        {"food_item": "Milch 1,5%", "base_amount_g": 200},
+        {"food_item": "Banane", "base_amount_g": 80},
+        {"food_item": "Honig", "base_amount_g": 10}
+      ]
+    },
+    {
+      "name": "Cottage Cheese Bowl",
+      "category": "snack",
+      "description": "Cottage Cheese mit Erdbeeren und einem Schuss Honig.",
+      "tags": ["vegetarisch", "laktose", "low-carb", "high-protein", "schnelle Zubereitung"],
+      "ingredients": [
+        {"food_item": "Cottage Cheese", "base_amount_g": 200},
+        {"food_item": "Erdbeeren", "base_amount_g": 100},
+        {"food_item": "Honig", "base_amount_g": 10}
+      ]
+    }
+  ],
+  "macro_templates": [
+    {"goal_name": "Abnehmen", "protein_pct": 40.0, "carbs_pct": 35.0, "fat_pct": 25.0},
+    {"goal_name": "Muskelaufbau", "protein_pct": 35.0, "carbs_pct": 45.0, "fat_pct": 20.0},
+    {"goal_name": "Halten", "protein_pct": 30.0, "carbs_pct": 40.0, "fat_pct": 30.0}
+  ],
+  "app_settings": {
+    "logo_path": "",
+    "primary_color": "#2D6A4F",
+    "secondary_color": "#95D5B2",
+    "font_family": "Inter",
+    "coach_name": "MANANI FIT",
+    "coach_contact": "",
+    "disclaimer_text": "Dieser Ernährungsplan wurde von einem zertifizierten Fitness-Coach erstellt und dient ausschließlich als Orientierungshilfe. Er ersetzt keine medizinische oder ernährungstherapeutische Beratung. Bei gesundheitlichen Beschwerden oder Vorerkrankungen wende dich bitte an einen Arzt oder Ernährungsmediziner.",
+    "portion_min_g": "150",
+    "portion_max_g": "1200",
+    "macro_tolerance_pct": "5"
+  }
+}
