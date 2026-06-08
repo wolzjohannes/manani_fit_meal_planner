@@ -40,6 +40,23 @@ Kein Test-Framework vorhanden. `SECRET_KEY` per Env-Variable setzen (Fallback: u
 
 ---
 
+## README-Pflicht
+
+`README.md` ist die öffentliche Dokumentation dieses Projekts und muss **immer aktuell** gehalten werden.
+
+Bei folgenden Änderungen die README sofort mitaktualisieren:
+
+- Neue Features oder Routen hinzugefügt
+- Setup-Schritte oder Abhängigkeiten geändert
+- Neue Start-Scripts oder Befehle
+- Projektstruktur verändert (neue Ordner, umbenannte Dateien)
+- Tech-Stack erweitert (neue Bibliotheken)
+- Bekannte Stolpersteine oder Einschränkungen entdeckt
+
+**Regel:** Wer Code ändert, aktualisiert auch die README — kein separater „Doku-Schritt" am Ende.
+
+---
+
 ## 2. Architektur-Überblick
 
 ### Einstiegspunkte
