@@ -28,6 +28,7 @@ def _settings() -> dict[str, str]:
         "logo_path",
         "primary_color",
         "secondary_color",
+        "bg_color",
         "font_family",
         "coach_name",
         "coach_contact",
@@ -42,6 +43,7 @@ def _logo_base64(logo_path: str) -> str | None:
         return None
     path = Path(logo_path)
     if not path.exists():
+        _LOGGER.warning("Logo-Datei nicht gefunden: %s", logo_path)
         return None
     suffix = path.suffix.lower().lstrip(".")
     mime = "jpeg" if suffix in ("jpg", "jpeg") else "png"
@@ -80,6 +82,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     font = s["font_family"] or "Inter"
     primary = s["primary_color"] or "#00D4FF"
     secondary = s["secondary_color"] or "#FF6B35"
+    bg_color = s["bg_color"] or "#FFFFFF"
     coach_name = s["coach_name"] or "MANANI FIT"
     coach_contact = s["coach_contact"] or ""
     disclaimer = s["disclaimer_text"] or ""
@@ -216,6 +219,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       font-family: '{font}', sans-serif;
       font-size: 10pt;
       color: #222;
+      background-color: {bg_color};
       line-height: 1.6;
     }}
 

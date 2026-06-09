@@ -41,6 +41,15 @@
         </div>
       </div>
       <div class="form-group">
+        <label for="bg_color">Hintergrundfarbe (PDF-Seiten)</label>
+        <div style="display:flex; gap:.5rem; align-items:center">
+          <input type="color" id="bg_color" name="bg_color"
+                 value="{{ settings.bg_color or '#FFFFFF' }}" style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
+          <input type="text" name="bg_color_text" value="{{ settings.bg_color or '#FFFFFF' }}"
+                 style="width:90px" oninput="document.getElementById('bg_color').value=this.value">
+        </div>
+      </div>
+      <div class="form-group">
         <label for="font_family">Schriftart</label>
         <select id="font_family" name="font_family">
           {% for f in ['Inter', 'Montserrat', 'Raleway', 'Open Sans'] %}
@@ -51,8 +60,11 @@
       <div class="form-group">
         <label for="logo_file">Logo hochladen (PNG/JPG, max. 5 MB)</label>
         <input type="file" id="logo_file" name="logo_file" accept=".png,.jpg,.jpeg">
-        {% if settings.logo_path %}
+        {% if logo_preview_url %}
+          <img src="{{ logo_preview_url }}" style="display:block; max-height:80px; max-width:200px; margin-top:.5rem; border-radius:4px; border:1px solid #ddd;" alt="Aktuelles Logo">
           <small>Aktuell: {{ settings.logo_path }}</small>
+        {% elif logo_file_missing %}
+          <small style="color:var(--danger);">&#9888; Gespeicherte Datei nicht mehr vorhanden: {{ settings.logo_path }} — bitte Logo erneut hochladen.</small>
         {% endif %}
       </div>
       <div class="form-group form-group--full">
@@ -85,23 +97,91 @@
 
   <div class="form-section">
     <h2>Makro-Templates</h2>
-    <table class="data-table">
-      <thead>
-        <tr><th>Ziel</th><th>Protein %</th><th>KH %</th><th>Fett %</th><th>Summe</th></tr>
-      </thead>
-      <tbody>
-        {% for tmpl in macro_templates %}
-        <tr>
-          <td><strong>{{ tmpl.goal_name }}</strong></td>
-          <td><input type="number" name="protein_{{ tmpl.goal_name }}" value="{{ tmpl.protein_pct|round|int }}" min="10" max="60" style="width:70px"></td>
-          <td><input type="number" name="carbs_{{ tmpl.goal_name }}" value="{{ tmpl.carbs_pct|round|int }}" min="10" max="70" style="width:70px"></td>
-          <td><input type="number" name="fat_{{ tmpl.goal_name }}" value="{{ tmpl.fat_pct|round|int }}" min="10" max="50" style="width:70px"></td>
-          <td>{{ (tmpl.protein_pct + tmpl.carbs_pct + tmpl.fat_pct)|round|int }} %</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <p style="color:var(--text-muted, #888); font-size:.875rem; margin-bottom:1rem;">
+      Wähle pro Ziel den Berechnungsmodus: <strong>Prozentual</strong> verteilt die Tageskalorien nach %-Anteilen.
+      <strong>g/kg KG</strong> berechnet Protein und Fett aus dem Körpergewicht des Klienten — Kohlenhydrate füllen die verbleibenden Kalorien.
+    </p>
+
+    {% for tmpl in macro_templates %}
+    <div class="macro-tmpl-card" data-goal="{{ tmpl.goal_name }}" style="border:1px solid #2a2a2a; border-radius:8px; padding:1rem 1.25rem; margin-bottom:1rem;">
+      <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; margin-bottom:.75rem;">
+        <strong style="min-width:120px;">{{ tmpl.goal_name }}</strong>
+
+        <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+          <input type="radio"
+                 name="mode_{{ tmpl.goal_name }}"
+                 value="pct"
+                 {% if (tmpl.calculation_mode or 'pct') == 'pct' %}checked{% endif %}
+                 onchange="toggleMacroMode('{{ tmpl.goal_name }}', 'pct')">
+          Prozentual
+        </label>
+        <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+          <input type="radio"
+                 name="mode_{{ tmpl.goal_name }}"
+                 value="g_per_kg"
+                 {% if tmpl.calculation_mode == 'g_per_kg' %}checked{% endif %}
+                 onchange="toggleMacroMode('{{ tmpl.goal_name }}', 'g_per_kg')">
+          g / kg Körpergewicht
+        </label>
+      </div>
+
+      <!-- Prozent-Modus -->
+      <div class="macro-pct-fields" id="pct_{{ tmpl.goal_name }}"
+           style="display:{% if tmpl.calculation_mode == 'g_per_kg' %}none{% else %}flex{% endif %}; gap:1rem; align-items:center; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <label style="white-space:nowrap; font-size:.875rem;">Protein %</label>
+          <input type="number" name="protein_{{ tmpl.goal_name }}"
+                 value="{{ tmpl.protein_pct|round|int }}" min="10" max="60" style="width:70px">
+        </div>
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <label style="white-space:nowrap; font-size:.875rem;">KH %</label>
+          <input type="number" name="carbs_{{ tmpl.goal_name }}"
+                 value="{{ tmpl.carbs_pct|round|int }}" min="10" max="70" style="width:70px">
+        </div>
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <label style="white-space:nowrap; font-size:.875rem;">Fett %</label>
+          <input type="number" name="fat_{{ tmpl.goal_name }}"
+                 value="{{ tmpl.fat_pct|round|int }}" min="10" max="50" style="width:70px">
+        </div>
+        <span style="font-size:.875rem; color:#888;">
+          Summe: {{ (tmpl.protein_pct + tmpl.carbs_pct + tmpl.fat_pct)|round|int }} %
+        </span>
+      </div>
+
+      <!-- g/kg-Modus -->
+      <div class="macro-gkg-fields" id="gkg_{{ tmpl.goal_name }}"
+           style="display:{% if tmpl.calculation_mode == 'g_per_kg' %}flex{% else %}none{% endif %}; gap:1rem; align-items:center; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <label style="white-space:nowrap; font-size:.875rem;">Protein (g/kg)</label>
+          <input type="number" name="protein_gkg_{{ tmpl.goal_name }}" step="0.1" min="0.5" max="4.0" style="width:80px"
+                 value="{{ tmpl.protein_g_per_kg if tmpl.protein_g_per_kg else '' }}"
+                 placeholder="z.B. 2.2">
+        </div>
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <label style="white-space:nowrap; font-size:.875rem;">Fett (g/kg)</label>
+          <input type="number" name="fat_gkg_{{ tmpl.goal_name }}" step="0.05" min="0.2" max="2.0" style="width:80px"
+                 value="{{ tmpl.fat_g_per_kg if tmpl.fat_g_per_kg else '' }}"
+                 placeholder="z.B. 0.45">
+        </div>
+        <span style="font-size:.875rem; color:#888;">KH = verbleibende Kalorien</span>
+      </div>
+    </div>
+    {% endfor %}
   </div>
+
+  <script>
+  function toggleMacroMode(goal, mode) {
+    var pct = document.getElementById('pct_' + goal);
+    var gkg = document.getElementById('gkg_' + goal);
+    if (mode === 'g_per_kg') {
+      pct.style.display = 'none';
+      gkg.style.display = 'flex';
+    } else {
+      pct.style.display = 'flex';
+      gkg.style.display = 'none';
+    }
+  }
+  </script>
 
   <div class="form-actions">
     <button type="submit" class="btn btn--primary">Speichern</button>
