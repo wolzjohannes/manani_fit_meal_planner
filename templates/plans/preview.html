@@ -10,15 +10,18 @@
   </div>
 </div>
 
-<div class="preview-paper">
+<div class="preview-paper" style="background:{{ settings.bg_color or '#FFFFFF' }}">
   <!-- Titelseite -->
-  <div class="preview-section preview-cover" style="background:{{ settings.primary_color or '#2D6A4F' }}; color:white">
-    <div class="preview-logo-text">{{ settings.coach_name or 'MANANI FIT' }}</div>
-    <div style="margin-top:3rem">
-      <h2 style="font-size:1.8rem; font-weight:700">Ernährungsplan</h2>
-      <p style="font-size:1.1rem; opacity:.85; margin-top:.5rem">{{ plan.client.name }}</p>
-      <p style="opacity:.7; margin-top:.3rem">{{ plan.date_created.strftime('%d.%m.%Y') }} · Ziel: {{ plan.goal }}</p>
-      <div class="cover-macro-bar" style="background:rgba(255,255,255,.15); border-radius:8px; padding:1rem 1.5rem; margin-top:2rem; display:flex; gap:2rem">
+  <div class="preview-section preview-cover" style="background: linear-gradient(135deg, {{ settings.primary_color or '#2D6A4F' }}CC, {{ settings.secondary_color or '#95D5B2' }}CC), url('/static/uploads/bg_training.png'); background-size:cover; background-position:center; color:white; padding:0 1.875rem 1.875rem">
+    <div style="text-align:center; margin-bottom:1.5rem">
+      <img src="{{ logo_url }}" alt="MANANI FIT"
+           style="max-height:255px; max-width:255px; object-fit:contain; margin-top:4.5rem;">
+    </div>
+    <div style="margin-top:2.25rem">
+      <h2 style="font-size:1.8rem; font-weight:700; color:white">Ernährungsplan</h2>
+      <p style="font-size:1.1rem; opacity:.85; margin-top:.5rem; color:white">{{ plan.client.name }}</p>
+      <p style="opacity:.7; margin-top:.3rem; color:white">{{ plan.date_created.strftime('%d.%m.%Y') }} · Ziel: {{ plan.goal }}</p>
+      <div class="cover-macro-bar" style="background:rgba(255,255,255,.15); border-radius:8px; padding:.75rem 1.5rem; margin-top:1.5rem; display:flex; gap:2rem">
         <div><div style="font-size:1.5rem;font-weight:700">{{ total_macros.kcal|round|int }}</div><div style="font-size:.8rem;opacity:.75">kcal / Tag</div></div>
         <div><div style="font-size:1.5rem;font-weight:700">{{ total_macros.protein_g|round|int }} g</div><div style="font-size:.8rem;opacity:.75">Protein</div></div>
         <div><div style="font-size:1.5rem;font-weight:700">{{ total_macros.carbs_g|round|int }} g</div><div style="font-size:.8rem;opacity:.75">Kohlenhydrate</div></div>
@@ -28,7 +31,7 @@
   </div>
 
   <!-- Mahlzeiten -->
-  <div class="preview-section">
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
     <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Mahlzeiten</h2>
     {% for slot in plan.meal_slots %}
       {% set ma = slot_macros[slot.id]['A'] %}
@@ -55,7 +58,7 @@
                   </tr>
                   {% endfor %}
                 </table>
-                <p style="font-size:.8rem; color:#666; text-align:right; margin-top:.5rem">
+                <p style="font-size:.8rem; color:{{ settings.primary_color or '#2D6A4F' }}; text-align:right; margin-top:.5rem">
                   {{ macros.kcal|round|int }} kcal · P {{ macros.protein_g|round|int }} g · KH {{ macros.carbs_g|round|int }} g · F {{ macros.fat_g|round|int }} g
                 </p>
               {% else %}
@@ -69,14 +72,14 @@
   </div>
 
   <!-- Einkaufsliste -->
-  <div class="preview-section">
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
     <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Einkaufsliste</h2>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem">
       {% for label, items in [('Variante A', shopping_a), ('Variante B', shopping_b)] %}
         <div>
           <h3 style="font-size:1rem; margin-bottom:.5rem">{{ label }}</h3>
           <table style="width:100%; font-size:.9rem; border-collapse:collapse">
-            <tr style="background:#f5f5f5"><th style="text-align:left; padding:4px 6px">Lebensmittel</th><th style="text-align:right; padding:4px 6px">Menge</th></tr>
+            <tr style="background: linear-gradient(90deg, {{ settings.primary_color or '#2D6A4F' }}, {{ settings.secondary_color or '#95D5B2' }})"><th style="text-align:left; padding:4px 6px; color:white">Lebensmittel</th><th style="text-align:right; padding:4px 6px; color:white">Menge</th></tr>
             {% for item in items %}
             <tr style="border-bottom:1px solid #f0f0f0">
               <td style="padding:4px 6px">{{ item.name }}</td>
@@ -91,9 +94,9 @@
 
   <!-- Disclaimer -->
   {% if settings.disclaimer_text %}
-  <div class="preview-section">
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
     <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Hinweis</h2>
-    <p style="font-size:.85rem; color:#555; line-height:1.6">{{ settings.disclaimer_text }}</p>
+    <p style="font-size:.85rem; color:#ccc; line-height:1.6">{{ settings.disclaimer_text }}</p>
   </div>
   {% endif %}
 </div>

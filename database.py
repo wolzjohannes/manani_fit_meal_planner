@@ -16,8 +16,24 @@ def init_db(app) -> None:
     with app.app_context():
         db.create_all()
         _migrate_macro_template_columns(app)
+        _migrate_macro_overrides_columns(app)
         if FoodItem.query.count() == 0:
             _seed(app)
+
+
+def _migrate_macro_overrides_columns(app) -> None:
+    """Fügt macro_overrides-Spalte zu clients und meal_plans hinzu, falls fehlend."""
+    engine = db.engine
+    for table in ("clients", "meal_plans"):
+        with engine.connect() as conn:
+            result = conn.execute(db.text(f"PRAGMA table_info({table})"))
+            existing = {row[1] for row in result}
+        if "macro_overrides" not in existing:
+            with engine.begin() as conn:
+                conn.execute(
+                    db.text(f"ALTER TABLE {table} ADD COLUMN macro_overrides TEXT")
+                )
+            _LOGGER.info("Migration: Spalte 'macro_overrides' in %s hinzugefügt.", table)
 
 
 def _migrate_macro_template_columns(app) -> None:

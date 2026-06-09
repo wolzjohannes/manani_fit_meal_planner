@@ -23,9 +23,12 @@ _FONT_URLS = {
 }
 
 
+_STATIC_LOGO = Path(__file__).parent / "static" / "uploads" / "manani_fit_logo.png"
+_STATIC_HERO_LOGO = Path(__file__).parent / "static" / "uploads" / "become_hp_warrior_logo.png"
+
+
 def _settings() -> dict[str, str]:
     keys = [
-        "logo_path",
         "primary_color",
         "secondary_color",
         "bg_color",
@@ -37,18 +40,22 @@ def _settings() -> dict[str, str]:
     return {k: AppSettings.get(k, "") or "" for k in keys}
 
 
-def _logo_base64(logo_path: str) -> str | None:
-    """Liest das Logo und gibt es als Base64-Data-URL zurück."""
-    if not logo_path:
+def _logo_base64() -> str | None:
+    """Liest das statische MANANI FIT Logo als Base64-Data-URL."""
+    if not _STATIC_LOGO.exists():
+        _LOGGER.warning("Statisches Logo nicht gefunden: %s", _STATIC_LOGO)
         return None
-    path = Path(logo_path)
-    if not path.exists():
-        _LOGGER.warning("Logo-Datei nicht gefunden: %s", logo_path)
+    data = base64.b64encode(_STATIC_LOGO.read_bytes()).decode()
+    return f"data:image/png;base64,{data}"
+
+
+def _hero_logo_base64() -> str | None:
+    """Liest das Hero-Logo als Base64-Data-URL."""
+    if not _STATIC_HERO_LOGO.exists():
+        _LOGGER.warning("Hero-Logo nicht gefunden: %s", _STATIC_HERO_LOGO)
         return None
-    suffix = path.suffix.lower().lstrip(".")
-    mime = "jpeg" if suffix in ("jpg", "jpeg") else "png"
-    data = base64.b64encode(path.read_bytes()).decode()
-    return f"data:image/{mime};base64,{data}"
+    data = base64.b64encode(_STATIC_HERO_LOGO.read_bytes()).decode()
+    return f"data:image/png;base64,{data}"
 
 
 def _pie_chart_svg(macros) -> str:
@@ -87,11 +94,21 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     coach_contact = s["coach_contact"] or ""
     disclaimer = s["disclaimer_text"] or ""
 
-    logo_src = _logo_base64(s["logo_path"])
+    logo_src = _logo_base64()
+    hero_logo_src = _hero_logo_base64()
+    logo_left = (
+        f'<img class="logo" src="{logo_src}" alt="MANANI FIT">'
+        if logo_src else ""
+    )
+    hero_logo_center = (
+        f'<img class="hero-logo" src="{hero_logo_src}" alt="Hero">'
+        if hero_logo_src else ""
+    )
     logo_html = (
-        f'<img class="logo" src="{logo_src}" alt="Logo">'
-        if logo_src
-        else f'<span class="logo-text">{coach_name}</span>'
+        f'<div style="text-align:center; padding-top:12mm; margin-bottom:8mm">'
+        f'<img class="logo" src="{logo_src}" alt="MANANI FIT">'
+        f'</div>'
+        if logo_src else ""
     )
 
     macros_a = get_plan_total_macros(plan, "A")
@@ -127,7 +144,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     </table>
     """
 
-    meals_html = ""
+    slot_htmls = []
     for slot in plan.meal_slots:
         macros_slot_a = get_slot_macros(slot, "A")
         macros_slot_b = get_slot_macros(slot, "B")
@@ -160,7 +177,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
             </div>
             """
 
-        meals_html += f"""
+        slot_htmls.append(f"""
         <div class="meal-section">
           <h3 class="meal-title">{slot.label or f"Mahlzeit {slot.position}"}
             <span class="meal-kcal">{slot.kcal_target:.0f} kcal</span>
@@ -170,7 +187,13 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
             {_variant_html("B", slot.variant_b_dish, macros_slot_b)}
           </div>
         </div>
-        """
+        """)
+
+    meals_pages_html = ""
+    for i in range(0, len(slot_htmls), 2):
+        group = slot_htmls[i:i + 2]
+        heading = "<h2>Mahlzeiten</h2>" if i == 0 else ""
+        meals_pages_html += f'<div class="page">{heading}{"".join(group)}</div>'
 
     shopping_a = get_shopping_list(plan, "A")
     shopping_b = get_shopping_list(plan, "B")
@@ -184,22 +207,24 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     shopping_html = f"""
     <div class="shopping-section">
       <h2>Einkaufsliste</h2>
-      <div class="shopping-grid">
-        <div>
-          <h3>Variante A</h3>
-          <table class="ingredient-table">
-            <tr><th>Lebensmittel</th><th>Menge</th></tr>
-            {_shopping_rows(shopping_a)}
-          </table>
-        </div>
-        <div>
-          <h3>Variante B</h3>
-          <table class="ingredient-table">
-            <tr><th>Lebensmittel</th><th>Menge</th></tr>
-            {_shopping_rows(shopping_b)}
-          </table>
-        </div>
-      </div>
+      <table class="shopping-table">
+        <tr>
+          <td class="shopping-col">
+            <h3>Variante A</h3>
+            <table class="ingredient-table">
+              <tr><th>Lebensmittel</th><th>Menge</th></tr>
+              {_shopping_rows(shopping_a)}
+            </table>
+          </td>
+          <td class="shopping-col">
+            <h3>Variante B</h3>
+            <table class="ingredient-table">
+              <tr><th>Lebensmittel</th><th>Menge</th></tr>
+              {_shopping_rows(shopping_b)}
+            </table>
+          </td>
+        </tr>
+      </table>
     </div>
     """
 
@@ -218,12 +243,12 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     body {{
       font-family: '{font}', sans-serif;
       font-size: 10pt;
-      color: #222;
+      color: #ddd;
       background-color: {bg_color};
       line-height: 1.6;
     }}
 
-    .page {{ padding: 20mm 18mm; }}
+    .page {{ padding: 20mm 18mm; background-color: {bg_color}; }}
 
     @page {{
       size: A4;
@@ -232,18 +257,16 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
 
     /* Titelseite */
     .cover {{
-      background: linear-gradient(135deg, {primary}, {secondary});
+      background: linear-gradient(135deg, {primary}CC, {secondary}CC), url('static/uploads/bg_training.png');
+      background-size: cover;
+      background-position: center;
       color: white;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 20mm 18mm;
-      page-break-after: always;
+      padding: 12mm 18mm 8mm;
     }}
-    .cover .logo {{ max-height: 80px; max-width: 220px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }}
+    .cover .logo {{ max-height: 300px; max-width: 300px; object-fit: contain; }}
+    .cover .hero-logo {{ max-height: 300px; max-width: 300px; object-fit: contain; }}
     .logo-text {{ font-size: 28pt; font-weight: 700; letter-spacing: 3px; }}
-    .cover-main {{ margin-top: 30mm; }}
+    .cover-main {{ margin-top: 15mm; }}
     .cover h1 {{ font-size: 32pt; font-weight: 700; margin-bottom: 8mm; }}
     .cover .subtitle {{ font-size: 16pt; opacity: 0.9; font-weight: 500; }}
     .cover .meta {{ font-size: 11pt; margin-top: 8mm; opacity: 0.8; }}
@@ -251,16 +274,14 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       background: rgba(255,255,255,0.12);
       border-radius: 12px;
       padding: 8mm 10mm;
-      margin-top: 16mm;
+      margin-top: 8mm;
       display: flex;
-      gap: 14mm;
-      backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.2);
     }}
-    .cover-macros .macro-item {{ text-align: center; }}
+    .cover-macros .macro-item {{ text-align: center; display: inline-block; margin-right: 14mm; }}
+    .cover-macros .macro-item:last-child {{ margin-right: 0; }}
     .cover-macros .macro-value {{ font-size: 20pt; font-weight: 700; }}
     .cover-macros .macro-label {{ font-size: 9pt; opacity: 0.85; margin-top: 2mm; }}
-    .cover-footer {{ font-size: 9pt; opacity: 0.7; }}
 
     /* Makro-Diagramm */
     .macro-section {{
@@ -275,13 +296,8 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       padding-bottom: 3mm;
       display: inline-block;
     }}
-    .macro-overview {{
-      display: flex;
-      gap: 12mm;
-      align-items: flex-start;
-      margin-top: 6mm;
-    }}
-    .macro-overview svg {{ max-width: 140px; flex-shrink: 0; }}
+    .macro-overview {{ margin-top: 30mm; }}
+    .macro-overview svg {{ max-width: 140px; }}
     .macro-table {{
       border-collapse: collapse;
       width: 100%;
@@ -290,10 +306,11 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     .macro-table th, .macro-table td {{
       padding: 4mm 5mm;
       text-align: left;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
     }}
-    .macro-table th {{ background: linear-gradient(135deg, {primary}20, {secondary}20); font-weight: 700; color: {primary}; }}
-    .total-row td {{ font-weight: 700; background: rgba(0,0,0,0.02); border-top: 2px solid {primary}; }}
+    .macro-table th {{ background: rgba(255,255,255,0.15); font-weight: 700; color: white; }}
+    .macro-table td {{ color: white; }}
+    .total-row td {{ font-weight: 700; background: rgba(255,255,255,0.05); border-top: 2px solid {primary}; color: white; }}
 
     /* Mahlzeiten */
     .meal-section {{
@@ -317,16 +334,23 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       opacity: 0.9;
     }}
     .variants-grid {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4mm;
       margin-top: 3mm;
+      font-size: 0;
+    }}
+    .variants-grid .variant-block {{
+      display: inline-block;
+      width: 48%;
+      vertical-align: top;
+      font-size: 10pt;
+    }}
+    .variants-grid .variant-block:first-child {{
+      margin-right: 4%;
     }}
     .variant-block {{
-      border: 1px solid #e0e0e0;
+      border: 1px solid rgba(255,255,255,0.12);
       border-radius: 6px;
       padding: 4mm;
-      background: #fafafa;
+      background: rgba(255,255,255,0.08);
     }}
     .variant-block h4 {{
       font-size: 11pt;
@@ -342,13 +366,15 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     .ingredient-table th, .ingredient-table td {{
       padding: 2mm 3mm;
       text-align: left;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }}
-    .ingredient-table th {{ font-weight: 700; color: #555; background: #f5f5f5; }}
+    .ingredient-table th {{ font-weight: 700; color: #ddd; background: rgba(255,255,255,0.1); }}
+    .shopping-col .ingredient-table th {{ color: white; background: linear-gradient(90deg, {primary}, {secondary}); }}
+    .shopping-col .ingredient-table td {{ color: #ddd; }}
     .amount, .kcal-col {{ text-align: right; white-space: nowrap; }}
     .slot-macros {{
       font-size: 9pt;
-      color: #666;
+      color: {primary};
       margin-top: 2mm;
       text-align: right;
       font-weight: 500;
@@ -356,13 +382,20 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
 
     /* Einkaufsliste */
     .shopping-section {{ page-break-before: always; }}
-    .shopping-grid {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10mm;
+    .shopping-table {{
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 6mm;
     }}
-    .shopping-grid h3 {{
+    .shopping-table td {{
+      width: 50%;
+      vertical-align: top;
+      padding-right: 10mm;
+    }}
+    .shopping-table td:last-child {{
+      padding-right: 0;
+    }}
+    .shopping-col h3 {{
       font-size: 12pt;
       font-weight: 700;
       color: {primary};
@@ -373,7 +406,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     .disclaimer {{
       page-break-before: always;
       font-size: 9pt;
-      color: #555;
+      color: #ccc;
       line-height: 1.7;
     }}
     .disclaimer h2 {{ font-size: 14pt; margin-bottom: 6mm; }}
@@ -421,23 +454,17 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       </div>
     </div>
   </div>
-  <div class="cover-footer">{coach_name} &nbsp;·&nbsp; {coach_contact}</div>
 </div>
 
 <!-- Makro-Diagramm -->
 <div class="page macro-section">
   <h2>Makro-Übersicht</h2>
-  <div class="macro-overview">
-    {pie_svg}
-    {macros_table}
-  </div>
+  <div style="text-align:center; margin-bottom:8mm">{pie_svg}</div>
+  {macros_table}
 </div>
 
 <!-- Mahlzeiten -->
-<div class="page">
-  <h2>Mahlzeiten</h2>
-  {meals_html}
-</div>
+{meals_pages_html}
 
 <!-- Einkaufsliste -->
 <div class="page">
@@ -464,4 +491,4 @@ def generate_pdf(plan: MealPlan, upload_folder: str) -> bytes:
     from weasyprint import HTML
 
     html_str = _render_html(plan, upload_folder)
-    return HTML(string=html_str).write_pdf()
+    return HTML(string=html_str, base_url=str(Path(__file__).parent)).write_pdf()

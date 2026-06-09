@@ -57,15 +57,49 @@ class GenerationResult:
     warnings: list[ValidationWarning] = field(default_factory=list)
 
 
+def resolve_macro_overrides(plan: MealPlan) -> dict:
+    """Gibt die effektiven Makro-Overrides für einen Plan zurück.
+
+    Priorität: Plan-Override > Klient-Override > leeres dict (→ globales Template).
+    """
+    plan_ov = plan.get_macro_overrides()
+    if plan_ov:
+        return plan_ov
+    return plan.client.get_macro_overrides()
+
+
 def calculate_macros(
-    kcal: float, goal: str, weight_kg: float | None = None
+    kcal: float,
+    goal: str,
+    weight_kg: float | None = None,
+    overrides: dict | None = None,
 ) -> MacroSplit:
     """Berechnet Makros in Gramm für ein Kalorienziel und ein Fitness-Ziel.
 
-    Unterstützt zwei Modi:
-    - "pct": Prozentuale Verteilung (Standard)
-    - "g_per_kg": Protein + Fett per kg Körpergewicht; KH = verbleibende Kcal
+    Priorität: overrides (Klient/Plan-spezifisch) > globales MacroTemplate.
+    Modi: "pct" (Prozentual) oder "g_per_kg" (per kg Körpergewicht).
     """
+    if overrides:
+        mode = overrides.get("mode", "pct")
+        if mode == "g_per_kg" and weight_kg is not None:
+            p_gkg = overrides.get("protein_g_per_kg")
+            f_gkg = overrides.get("fat_g_per_kg")
+            if p_gkg is not None and f_gkg is not None:
+                protein_g = float(p_gkg) * weight_kg
+                fat_g = float(f_gkg) * weight_kg
+                carbs_kcal = kcal - protein_g * 4.0 - fat_g * 9.0
+                carbs_g = max(0.0, carbs_kcal / 4.0)
+                return MacroSplit(kcal=kcal, protein_g=protein_g, carbs_g=carbs_g, fat_g=fat_g)
+        else:
+            p_pct = overrides.get("protein_pct")
+            c_pct = overrides.get("carbs_pct")
+            f_pct = overrides.get("fat_pct")
+            if p_pct is not None and c_pct is not None and f_pct is not None:
+                protein_g = (kcal * float(p_pct) / 100.0) / 4.0
+                carbs_g = (kcal * float(c_pct) / 100.0) / 4.0
+                fat_g = (kcal * float(f_pct) / 100.0) / 9.0
+                return MacroSplit(kcal=kcal, protein_g=protein_g, carbs_g=carbs_g, fat_g=fat_g)
+
     tmpl = MacroTemplate.query.filter_by(goal_name=goal).first()
     if tmpl is None:
         tmpl = MacroTemplate(
@@ -181,12 +215,37 @@ def _keyword_filter(dish: Dish, guidelines: str) -> bool:
     return not keywords
 
 
+def _dish_macro_ratios(dish: Dish) -> tuple[float, float, float]:
+    """Gibt (protein_ratio, carbs_ratio, fat_ratio) als Anteil an Gesamt-kcal zurück."""
+    protein_kcal = 0.0
+    carbs_kcal = 0.0
+    fat_kcal = 0.0
+    total_kcal = 0.0
+    for di in dish.dish_ingredients:
+        macros = di.food_item.macros_for(di.base_amount_g)
+        protein_kcal += macros["protein_g"] * 4
+        carbs_kcal += macros["carbs_g"] * 4
+        fat_kcal += macros["fat_g"] * 9
+        total_kcal += macros["kcal"]
+    if total_kcal <= 0:
+        return (0.33, 0.34, 0.33)
+    return (protein_kcal / total_kcal, carbs_kcal / total_kcal, fat_kcal / total_kcal)
+
+
+def _macro_distance(
+    r1: tuple[float, float, float], r2: tuple[float, float, float]
+) -> float:
+    """Euklidischer Abstand zweier Makro-Verhältnis-Tupel."""
+    return sum((a - b) ** 2 for a, b in zip(r1, r2)) ** 0.5
+
+
 def select_dish_variants(
     position: int,
     n_meals: int,
     guidelines: str,
     client: Client,
     used_dish_ids: set[int],
+    target_macro_ratios: tuple[float, float, float] | None = None,
 ) -> tuple[Dish | None, Dish | None]:
     """Wählt 2 verschiedene Gerichte für eine Mahlzeit aus der DB.
 
@@ -195,7 +254,8 @@ def select_dish_variants(
     2. Client-Einschränkungen (Allergen-Tags) ausschließen
     3. Richtlinien-Keywords matchen
     4. Bereits verwendete Gerichte bevorzugt vermeiden
-    5. Fallback: alle aktiven Gerichte ohne Allergen-Konflikt
+    5. Wenn target_macro_ratios angegeben: nach Makro-Nähe sortieren
+    6. Fallback: alle aktiven Gerichte ohne Allergen-Konflikt
     """
     category = _category_for_position(position, n_meals)
     forbidden = _client_forbidden_allergens(client)
@@ -230,7 +290,20 @@ def select_dish_variants(
         return None, None
     if len(ordered) == 1:
         return ordered[0], ordered[0]
-    return ordered[0], ordered[1]
+
+    if target_macro_ratios is not None:
+        ordered.sort(
+            key=lambda d: _macro_distance(target_macro_ratios, _dish_macro_ratios(d))
+        )
+        return ordered[0], ordered[1]
+
+    dish_a = ordered[0]
+    ratios_a = _dish_macro_ratios(dish_a)
+    remaining = sorted(
+        ordered[1:],
+        key=lambda d: _macro_distance(ratios_a, _dish_macro_ratios(d)),
+    )
+    return dish_a, remaining[0]
 
 
 def _scale_dish(
@@ -320,6 +393,20 @@ def generate_plan(
     used_dish_ids: set[int] = set()
     tolerance_pct = float(AppSettings.get("macro_tolerance_pct", 5))
 
+    target_macros = calculate_macros(
+        float(plan.kcal_target), plan.goal, plan.client.weight_kg,
+        overrides=resolve_macro_overrides(plan),
+    )
+    if plan.kcal_target > 0:
+        kcal_f = float(plan.kcal_target)
+        target_macro_ratios: tuple[float, float, float] | None = (
+            (target_macros.protein_g * 4.0) / kcal_f,
+            (target_macros.carbs_g * 4.0) / kcal_f,
+            (target_macros.fat_g * 9.0) / kcal_f,
+        )
+    else:
+        target_macro_ratios = None
+
     total_actual_kcal = 0.0
 
     for i, (sd, slot_kcal) in enumerate(zip(slots_data, kcal_targets), start=1):
@@ -332,6 +419,7 @@ def generate_plan(
             guidelines=guidelines,
             client=client,
             used_dish_ids=used_dish_ids,
+            target_macro_ratios=target_macro_ratios,
         )
 
         if dish_a is not None:
@@ -357,7 +445,6 @@ def generate_plan(
                 total_actual_kcal += ing.kcal
 
         if dish_b and dish_b != dish_a:
-            _scale_dish(dish_b, slot_kcal, "B", slot.id, warnings, i)
             for ing in _scale_dish(dish_b, slot_kcal, "B", slot.id, warnings, i):
                 db.session.add(ing)
 
@@ -372,29 +459,62 @@ def _validate_daily_macros(
     warnings: list[ValidationWarning],
     tolerance_pct: float,
 ) -> None:
-    """Prüft ob die Tages-Makros innerhalb der Toleranz liegen."""
-    tmpl = MacroTemplate.query.filter_by(goal_name=plan.goal).first()
-    if tmpl is None:
-        return
+    """Prüft ob die Tages-Kalorien und Makros innerhalb der Toleranz liegen."""
+    target_macros = calculate_macros(
+        float(plan.kcal_target), plan.goal, plan.client.weight_kg,
+        overrides=resolve_macro_overrides(plan),
+    )
 
     slots = MealSlot.query.filter_by(plan_id=plan.id).all()
-    actual_kcal = sum(
-        ing.kcal
+    ings_a = [
+        ing
         for slot in slots
         for ing in slot.scaled_ingredients
         if ing.variant == "A"
-    )
-    target = float(plan.kcal_target)
-    if target > 0:
-        deviation_pct = abs(actual_kcal - target) / target * 100
+    ]
+    actual_kcal = sum(i.kcal for i in ings_a)
+    actual_protein = sum(i.protein_g for i in ings_a)
+    actual_fat = sum(i.fat_g for i in ings_a)
+
+    target_kcal = float(plan.kcal_target)
+    if target_kcal > 0:
+        deviation_pct = abs(actual_kcal - target_kcal) / target_kcal * 100
         if deviation_pct > tolerance_pct * 2:
             warnings.append(
                 ValidationWarning(
                     meal_slot_position=None,
                     message=(
-                        f"Tages-Kalorien: Ziel {target:.0f} kcal, "
+                        f"Tages-Kalorien: Ziel {target_kcal:.0f} kcal, "
                         f"tatsächlich {actual_kcal:.0f} kcal "
                         f"(Abweichung {deviation_pct:.1f} %)."
+                    ),
+                )
+            )
+
+    if target_macros.protein_g > 0:
+        prot_dev = abs(actual_protein - target_macros.protein_g) / target_macros.protein_g * 100
+        if prot_dev > tolerance_pct * 2:
+            warnings.append(
+                ValidationWarning(
+                    meal_slot_position=None,
+                    message=(
+                        f"Protein: Ziel {target_macros.protein_g:.0f} g, "
+                        f"tatsächlich {actual_protein:.0f} g "
+                        f"(Abweichung {prot_dev:.1f} %)."
+                    ),
+                )
+            )
+
+    if target_macros.fat_g > 0:
+        fat_dev = abs(actual_fat - target_macros.fat_g) / target_macros.fat_g * 100
+        if fat_dev > tolerance_pct * 2:
+            warnings.append(
+                ValidationWarning(
+                    meal_slot_position=None,
+                    message=(
+                        f"Fett: Ziel {target_macros.fat_g:.0f} g, "
+                        f"tatsächlich {actual_fat:.0f} g "
+                        f"(Abweichung {fat_dev:.1f} %)."
                     ),
                 )
             )

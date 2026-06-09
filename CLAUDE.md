@@ -269,6 +269,13 @@ position: fixed; bottom: 8mm;   /* Footer auf jeder Seite */
 
 ## 7. Frontend-Templates
 
+### Vorschau ↔ PDF Konsistenz (Pflicht)
+
+`/plans/<id>/preview` (HTML-Vorschau) und `/plans/<id>/pdf` (WeasyPrint-PDF) müssen visuell stets übereinstimmen:
+- Gleiches Logo, gleiche Farben, gleiches Cover-Hintergrundbild
+- Gleicher Stil für Mahlzeiten-Trenner, Makro-Zeilen, Einkaufslisten-Header
+- Wer eine der beiden Seiten ändert (`templates/plans/preview.html` oder `pdf_generator.py`), aktualisiert die andere ebenfalls
+
 ### Template-Blöcke (`base.html`)
 
 Nur zwei Blöcke definiert:

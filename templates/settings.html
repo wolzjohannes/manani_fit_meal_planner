@@ -26,7 +26,9 @@
         <label for="primary_color">Primärfarbe</label>
         <div style="display:flex; gap:.5rem; align-items:center">
           <input type="color" id="primary_color" name="primary_color"
-                 value="{{ settings.primary_color or '#2D6A4F' }}" style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
+                 value="{{ settings.primary_color or '#2D6A4F' }}"
+                 oninput="this.nextElementSibling.value=this.value"
+                 style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
           <input type="text" name="primary_color_text" value="{{ settings.primary_color or '#2D6A4F' }}"
                  style="width:90px" oninput="document.getElementById('primary_color').value=this.value">
         </div>
@@ -35,7 +37,9 @@
         <label for="secondary_color">Sekundärfarbe</label>
         <div style="display:flex; gap:.5rem; align-items:center">
           <input type="color" id="secondary_color" name="secondary_color"
-                 value="{{ settings.secondary_color or '#95D5B2' }}" style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
+                 value="{{ settings.secondary_color or '#95D5B2' }}"
+                 oninput="this.nextElementSibling.value=this.value"
+                 style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
           <input type="text" name="secondary_color_text" value="{{ settings.secondary_color or '#95D5B2' }}"
                  style="width:90px" oninput="document.getElementById('secondary_color').value=this.value">
         </div>
@@ -44,7 +48,9 @@
         <label for="bg_color">Hintergrundfarbe (PDF-Seiten)</label>
         <div style="display:flex; gap:.5rem; align-items:center">
           <input type="color" id="bg_color" name="bg_color"
-                 value="{{ settings.bg_color or '#FFFFFF' }}" style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
+                 value="{{ settings.bg_color or '#FFFFFF' }}"
+                 oninput="this.nextElementSibling.value=this.value"
+                 style="width:48px; height:38px; border:none; cursor:pointer; border-radius:4px">
           <input type="text" name="bg_color_text" value="{{ settings.bg_color or '#FFFFFF' }}"
                  style="width:90px" oninput="document.getElementById('bg_color').value=this.value">
         </div>
@@ -56,16 +62,6 @@
             <option value="{{ f }}" {% if settings.font_family == f %}selected{% endif %}>{{ f }}</option>
           {% endfor %}
         </select>
-      </div>
-      <div class="form-group">
-        <label for="logo_file">Logo hochladen (PNG/JPG, max. 5 MB)</label>
-        <input type="file" id="logo_file" name="logo_file" accept=".png,.jpg,.jpeg">
-        {% if logo_preview_url %}
-          <img src="{{ logo_preview_url }}" style="display:block; max-height:80px; max-width:200px; margin-top:.5rem; border-radius:4px; border:1px solid #ddd;" alt="Aktuelles Logo">
-          <small>Aktuell: {{ settings.logo_path }}</small>
-        {% elif logo_file_missing %}
-          <small style="color:var(--danger);">&#9888; Gespeicherte Datei nicht mehr vorhanden: {{ settings.logo_path }} — bitte Logo erneut hochladen.</small>
-        {% endif %}
       </div>
       <div class="form-group form-group--full">
         <label for="disclaimer_text">Disclaimer-Text</label>

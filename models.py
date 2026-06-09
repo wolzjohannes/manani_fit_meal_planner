@@ -31,6 +31,7 @@ class Client(db.Model):
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
     is_archived: bool = db.Column(db.Boolean, default=False)
+    macro_overrides: str | None = db.Column(db.Text, nullable=True)
 
     plans = db.relationship("MealPlan", back_populates="client", lazy="dynamic")
 
@@ -39,6 +40,13 @@ class Client(db.Model):
 
     def set_restriction_tags(self, tags: list[str]) -> None:
         self.restriction_tags = json.dumps(tags, ensure_ascii=False)
+
+    def get_macro_overrides(self) -> dict:
+        """Gibt individuelle Makro-Einstellungen als dict zurück (leer = globales Template nutzen)."""
+        return json.loads(self.macro_overrides or "{}")
+
+    def set_macro_overrides(self, data: dict) -> None:
+        self.macro_overrides = json.dumps(data) if data else None
 
     def __repr__(self) -> str:
         return f"Client(id={self.id}, name={self.name!r})"
@@ -63,6 +71,7 @@ class MealPlan(db.Model):
     notes: str | None = db.Column(db.Text)
     status: str = db.Column(db.String(10), default="draft")
     include_supplements: bool = db.Column(db.Boolean, default=False)
+    macro_overrides: str | None = db.Column(db.Text, nullable=True)
 
     client = db.relationship("Client", back_populates="plans")
     meal_slots = db.relationship(
@@ -71,6 +80,13 @@ class MealPlan(db.Model):
         order_by="MealSlot.position",
         cascade="all, delete-orphan",
     )
+
+    def get_macro_overrides(self) -> dict:
+        """Gibt plan-spezifische Makro-Einstellungen als dict zurück."""
+        return json.loads(self.macro_overrides or "{}")
+
+    def set_macro_overrides(self, data: dict) -> None:
+        self.macro_overrides = json.dumps(data) if data else None
 
     def __repr__(self) -> str:
         return f"MealPlan(id={self.id}, name={self.name!r})"

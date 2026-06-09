@@ -83,6 +83,72 @@
     </div>
   </div>
 
+  <div class="form-section">
+    <h2>Individuelle Makros <small>(optional — überschreibt globale Templates)</small></h2>
+    {% set ov = client.get_macro_overrides() if client else {} %}
+    <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; margin-bottom:.75rem;">
+      <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+        <input type="radio" name="macro_mode_override" value=""
+               {% if not ov %}checked{% endif %}
+               onchange="toggleClientMacroMode('')">
+        Globales Template verwenden
+      </label>
+      <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+        <input type="radio" name="macro_mode_override" value="pct"
+               {% if ov.get('mode') == 'pct' %}checked{% endif %}
+               onchange="toggleClientMacroMode('pct')">
+        Prozentual
+      </label>
+      <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+        <input type="radio" name="macro_mode_override" value="g_per_kg"
+               {% if ov.get('mode') == 'g_per_kg' %}checked{% endif %}
+               onchange="toggleClientMacroMode('g_per_kg')">
+        g / kg Körpergewicht
+      </label>
+    </div>
+
+    <div id="client-macro-pct"
+         style="display:{% if ov.get('mode') == 'pct' %}flex{% else %}none{% endif %}; gap:1rem; align-items:center; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Protein %</label>
+        <input type="number" name="override_protein_pct" min="10" max="60" style="width:70px"
+               value="{{ ov.get('protein_pct', '') }}">
+      </div>
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">KH %</label>
+        <input type="number" name="override_carbs_pct" min="10" max="70" style="width:70px"
+               value="{{ ov.get('carbs_pct', '') }}">
+      </div>
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Fett %</label>
+        <input type="number" name="override_fat_pct" min="10" max="50" style="width:70px"
+               value="{{ ov.get('fat_pct', '') }}">
+      </div>
+    </div>
+
+    <div id="client-macro-gkg"
+         style="display:{% if ov.get('mode') == 'g_per_kg' %}flex{% else %}none{% endif %}; gap:1rem; align-items:center; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Protein (g/kg)</label>
+        <input type="number" name="override_protein_g_per_kg" step="0.1" min="0.5" max="4.0" style="width:80px"
+               value="{{ ov.get('protein_g_per_kg', '') }}" placeholder="z.B. 2.2">
+      </div>
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Fett (g/kg)</label>
+        <input type="number" name="override_fat_g_per_kg" step="0.05" min="0.2" max="2.0" style="width:80px"
+               value="{{ ov.get('fat_g_per_kg', '') }}" placeholder="z.B. 0.45">
+      </div>
+      <span style="font-size:.875rem; color:#888;">KH = verbleibende Kalorien</span>
+    </div>
+
+    <script>
+    function toggleClientMacroMode(mode) {
+      document.getElementById('client-macro-pct').style.display = mode === 'pct' ? 'flex' : 'none';
+      document.getElementById('client-macro-gkg').style.display = mode === 'g_per_kg' ? 'flex' : 'none';
+    }
+    </script>
+  </div>
+
   <div class="form-actions">
     <button type="submit" class="btn btn--primary">Speichern</button>
     <a href="{{ url_for('clients_list') }}" class="btn btn--ghost">Abbrechen</a>
