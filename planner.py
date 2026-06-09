@@ -57,15 +57,38 @@ class GenerationResult:
     warnings: list[ValidationWarning] = field(default_factory=list)
 
 
-def calculate_macros(kcal: float, goal: str) -> MacroSplit:
-    """Berechnet Makros in Gramm für ein Kalorienziel und ein Fitness-Ziel."""
+def calculate_macros(
+    kcal: float, goal: str, weight_kg: float | None = None
+) -> MacroSplit:
+    """Berechnet Makros in Gramm für ein Kalorienziel und ein Fitness-Ziel.
+
+    Unterstützt zwei Modi:
+    - "pct": Prozentuale Verteilung (Standard)
+    - "g_per_kg": Protein + Fett per kg Körpergewicht; KH = verbleibende Kcal
+    """
     tmpl = MacroTemplate.query.filter_by(goal_name=goal).first()
     if tmpl is None:
-        tmpl = MacroTemplate(protein_pct=35.0, carbs_pct=45.0, fat_pct=20.0)
+        tmpl = MacroTemplate(
+            protein_pct=35.0, carbs_pct=45.0, fat_pct=20.0, calculation_mode="pct"
+        )
 
-    protein_g = (kcal * tmpl.protein_pct / 100.0) / 4.0
-    carbs_g = (kcal * tmpl.carbs_pct / 100.0) / 4.0
-    fat_g = (kcal * tmpl.fat_pct / 100.0) / 9.0
+    use_g_per_kg = (
+        getattr(tmpl, "calculation_mode", "pct") == "g_per_kg"
+        and weight_kg is not None
+        and tmpl.protein_g_per_kg is not None
+        and tmpl.fat_g_per_kg is not None
+    )
+
+    if use_g_per_kg:
+        protein_g = tmpl.protein_g_per_kg * weight_kg
+        fat_g = tmpl.fat_g_per_kg * weight_kg
+        carbs_kcal = kcal - protein_g * 4.0 - fat_g * 9.0
+        carbs_g = max(0.0, carbs_kcal / 4.0)
+    else:
+        protein_g = (kcal * tmpl.protein_pct / 100.0) / 4.0
+        carbs_g = (kcal * tmpl.carbs_pct / 100.0) / 4.0
+        fat_g = (kcal * tmpl.fat_pct / 100.0) / 9.0
+
     return MacroSplit(kcal=kcal, protein_g=protein_g, carbs_g=carbs_g, fat_g=fat_g)
 
 

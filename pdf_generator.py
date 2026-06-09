@@ -28,6 +28,7 @@ def _settings() -> dict[str, str]:
         "logo_path",
         "primary_color",
         "secondary_color",
+        "bg_color",
         "font_family",
         "coach_name",
         "coach_contact",
@@ -42,6 +43,7 @@ def _logo_base64(logo_path: str) -> str | None:
         return None
     path = Path(logo_path)
     if not path.exists():
+        _LOGGER.warning("Logo-Datei nicht gefunden: %s", logo_path)
         return None
     suffix = path.suffix.lower().lstrip(".")
     mime = "jpeg" if suffix in ("jpg", "jpeg") else "png"
@@ -53,7 +55,7 @@ def _pie_chart_svg(macros) -> str:
     """Erstellt ein Makro-Tortendiagramm als SVG-String."""
     labels = ["Protein", "Kohlenhydrate", "Fett"]
     sizes = [macros.protein_g * 4, macros.carbs_g * 4, macros.fat_g * 9]
-    colors = ["#2D6A4F", "#95D5B2", "#D8F3DC"]
+    colors = ["#00D4FF", "#FF6B35", "#FFB000"]
 
     fig, ax = plt.subplots(figsize=(3.5, 3.5))
     ax.pie(
@@ -62,7 +64,7 @@ def _pie_chart_svg(macros) -> str:
         colors=colors,
         autopct="%1.0f%%",
         startangle=90,
-        textprops={"fontsize": 9},
+        textprops={"fontsize": 9, "weight": "bold"},
     )
     ax.axis("equal")
     fig.patch.set_alpha(0)
@@ -78,8 +80,9 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     """Rendert den vollständigen HTML-String für den PDF-Export."""
     s = _settings()
     font = s["font_family"] or "Inter"
-    primary = s["primary_color"] or "#2D6A4F"
-    secondary = s["secondary_color"] or "#95D5B2"
+    primary = s["primary_color"] or "#00D4FF"
+    secondary = s["secondary_color"] or "#FF6B35"
+    bg_color = s["bg_color"] or "#FFFFFF"
     coach_name = s["coach_name"] or "MANANI FIT"
     coach_contact = s["coach_contact"] or ""
     disclaimer = s["disclaimer_text"] or ""
@@ -215,8 +218,9 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     body {{
       font-family: '{font}', sans-serif;
       font-size: 10pt;
-      color: #1a1a1a;
-      line-height: 1.5;
+      color: #222;
+      background-color: {bg_color};
+      line-height: 1.6;
     }}
 
     .page {{ padding: 20mm 18mm; }}
@@ -228,7 +232,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
 
     /* Titelseite */
     .cover {{
-      background: {primary};
+      background: linear-gradient(135deg, {primary}, {secondary});
       color: white;
       min-height: 100vh;
       display: flex;
@@ -237,24 +241,26 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       padding: 20mm 18mm;
       page-break-after: always;
     }}
-    .cover .logo {{ max-height: 60px; max-width: 200px; object-fit: contain; }}
-    .logo-text {{ font-size: 24pt; font-weight: 700; letter-spacing: 2px; }}
-    .cover-main {{ margin-top: 40mm; }}
-    .cover h1 {{ font-size: 28pt; font-weight: 700; margin-bottom: 6mm; }}
-    .cover .subtitle {{ font-size: 14pt; opacity: 0.85; }}
-    .cover .meta {{ font-size: 11pt; margin-top: 8mm; opacity: 0.75; }}
+    .cover .logo {{ max-height: 80px; max-width: 220px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }}
+    .logo-text {{ font-size: 28pt; font-weight: 700; letter-spacing: 3px; }}
+    .cover-main {{ margin-top: 30mm; }}
+    .cover h1 {{ font-size: 32pt; font-weight: 700; margin-bottom: 8mm; }}
+    .cover .subtitle {{ font-size: 16pt; opacity: 0.9; font-weight: 500; }}
+    .cover .meta {{ font-size: 11pt; margin-top: 8mm; opacity: 0.8; }}
     .cover-macros {{
-      background: rgba(255,255,255,0.15);
-      border-radius: 8px;
-      padding: 6mm 8mm;
-      margin-top: 12mm;
+      background: rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 8mm 10mm;
+      margin-top: 16mm;
       display: flex;
-      gap: 12mm;
+      gap: 14mm;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
     }}
     .cover-macros .macro-item {{ text-align: center; }}
-    .cover-macros .macro-value {{ font-size: 18pt; font-weight: 700; }}
-    .cover-macros .macro-label {{ font-size: 9pt; opacity: 0.8; margin-top: 1mm; }}
-    .cover-footer {{ font-size: 9pt; opacity: 0.6; }}
+    .cover-macros .macro-value {{ font-size: 20pt; font-weight: 700; }}
+    .cover-macros .macro-label {{ font-size: 9pt; opacity: 0.85; margin-top: 2mm; }}
+    .cover-footer {{ font-size: 9pt; opacity: 0.7; }}
 
     /* Makro-Diagramm */
     .macro-section {{
@@ -262,67 +268,69 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     }}
     h2 {{
       color: {primary};
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: 700;
-      margin-bottom: 6mm;
-      border-bottom: 2px solid {secondary};
-      padding-bottom: 2mm;
+      margin-bottom: 8mm;
+      border-bottom: 3px solid {secondary};
+      padding-bottom: 3mm;
+      display: inline-block;
     }}
     .macro-overview {{
       display: flex;
-      gap: 10mm;
+      gap: 12mm;
       align-items: flex-start;
-      margin-top: 4mm;
+      margin-top: 6mm;
     }}
-    .macro-overview svg {{ max-width: 160px; flex-shrink: 0; }}
+    .macro-overview svg {{ max-width: 140px; flex-shrink: 0; }}
     .macro-table {{
       border-collapse: collapse;
       width: 100%;
       font-size: 10pt;
     }}
     .macro-table th, .macro-table td {{
-      padding: 3mm 4mm;
+      padding: 4mm 5mm;
       text-align: left;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid #ddd;
     }}
-    .macro-table th {{ background: {secondary}; font-weight: 600; color: {primary}; }}
-    .total-row td {{ font-weight: 700; border-top: 2px solid {primary}; }}
+    .macro-table th {{ background: linear-gradient(135deg, {primary}20, {secondary}20); font-weight: 700; color: {primary}; }}
+    .total-row td {{ font-weight: 700; background: rgba(0,0,0,0.02); border-top: 2px solid {primary}; }}
 
     /* Mahlzeiten */
     .meal-section {{
-      margin-bottom: 8mm;
+      margin-bottom: 10mm;
       page-break-inside: avoid;
     }}
     .meal-title {{
       font-size: 13pt;
       font-weight: 700;
-      color: {primary};
-      background: {secondary}30;
-      padding: 2mm 4mm;
-      border-left: 4px solid {primary};
+      color: white;
+      background: linear-gradient(90deg, {primary}, {secondary});
+      padding: 3mm 5mm;
+      border-radius: 4px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }}
     .meal-kcal {{
       font-size: 10pt;
-      font-weight: 400;
-      color: #555;
+      font-weight: 500;
+      opacity: 0.9;
     }}
     .variants-grid {{
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4mm;
-      margin-top: 2mm;
+      margin-top: 3mm;
     }}
     .variant-block {{
       border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      padding: 3mm;
+      border-radius: 6px;
+      padding: 4mm;
+      background: #fafafa;
     }}
     .variant-block h4 {{
-      font-size: 10pt;
-      font-weight: 600;
+      font-size: 11pt;
+      font-weight: 700;
       color: {primary};
       margin-bottom: 2mm;
     }}
@@ -332,17 +340,18 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       font-size: 9pt;
     }}
     .ingredient-table th, .ingredient-table td {{
-      padding: 1.5mm 2mm;
+      padding: 2mm 3mm;
       text-align: left;
       border-bottom: 1px solid #f0f0f0;
     }}
-    .ingredient-table th {{ font-weight: 600; color: #555; }}
+    .ingredient-table th {{ font-weight: 700; color: #555; background: #f5f5f5; }}
     .amount, .kcal-col {{ text-align: right; white-space: nowrap; }}
     .slot-macros {{
-      font-size: 8.5pt;
-      color: #555;
+      font-size: 9pt;
+      color: #666;
       margin-top: 2mm;
       text-align: right;
+      font-weight: 500;
     }}
 
     /* Einkaufsliste */
@@ -350,18 +359,24 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     .shopping-grid {{
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8mm;
-      margin-top: 4mm;
+      gap: 10mm;
+      margin-top: 6mm;
+    }}
+    .shopping-grid h3 {{
+      font-size: 12pt;
+      font-weight: 700;
+      color: {primary};
+      margin-bottom: 3mm;
     }}
 
     /* Disclaimer */
     .disclaimer {{
       page-break-before: always;
       font-size: 9pt;
-      color: #666;
-      line-height: 1.6;
+      color: #555;
+      line-height: 1.7;
     }}
-    .disclaimer h2 {{ font-size: 12pt; margin-bottom: 4mm; }}
+    .disclaimer h2 {{ font-size: 14pt; margin-bottom: 6mm; }}
 
     /* Footer */
     .footer {{
@@ -370,11 +385,11 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       left: 18mm;
       right: 18mm;
       font-size: 8pt;
-      color: #aaa;
+      color: #999;
       display: flex;
       justify-content: space-between;
       border-top: 1px solid #e0e0e0;
-      padding-top: 2mm;
+      padding-top: 3mm;
     }}
   </style>
 </head>

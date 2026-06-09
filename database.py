@@ -15,8 +15,35 @@ def init_db(app) -> None:
     """Erstellt alle Tabellen und befüllt sie mit Seed-Daten falls leer."""
     with app.app_context():
         db.create_all()
+        _migrate_macro_template_columns(app)
         if FoodItem.query.count() == 0:
             _seed(app)
+
+
+def _migrate_macro_template_columns(app) -> None:
+    """Fügt neue Spalten in macro_templates hinzu, falls sie noch fehlen (SQLite)."""
+    engine = db.engine
+    with engine.connect() as conn:
+        result = conn.execute(db.text("PRAGMA table_info(macro_templates)"))
+        existing = {row[1] for row in result}
+
+    new_columns = {
+        "calculation_mode": (
+            "ALTER TABLE macro_templates"
+            " ADD COLUMN calculation_mode VARCHAR(10) NOT NULL DEFAULT 'pct'"
+        ),
+        "protein_g_per_kg": (
+            "ALTER TABLE macro_templates ADD COLUMN protein_g_per_kg FLOAT"
+        ),
+        "fat_g_per_kg": (
+            "ALTER TABLE macro_templates ADD COLUMN fat_g_per_kg FLOAT"
+        ),
+    }
+    for col, ddl in new_columns.items():
+        if col not in existing:
+            with engine.begin() as conn:
+                conn.execute(db.text(ddl))
+            _LOGGER.info("Migration: Spalte '%s' in macro_templates hinzugefügt.", col)
 
 
 def _seed(app) -> None:

@@ -5,13 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}MANANI FIT Meal Planner{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
   <nav class="navbar">
-    <a href="{{ url_for('index') }}" class="nav-brand">MANANI FIT</a>
+    <a href="{{ url_for('index') }}" class="nav-brand">
+      <span class="nav-title">MANANI FIT <span class="nav-subtitle">Nutrition App</span></span>
+    </a>
+    <div class="nav-center">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='uploads/manani_fit_logo.png') }}" alt="MANANI FIT" class="nav-center-logo">
+      </a>
+    </div>
     <ul class="nav-links">
       <li><a href="{{ url_for('clients_list') }}" {% if request.endpoint and 'clients' in request.endpoint %}class="active"{% endif %}>Clients</a></li>
       <li><a href="{{ url_for('plans_new') }}" {% if request.endpoint and 'plans_new' in request.endpoint %}class="active"{% endif %}>Neuer Plan</a></li>

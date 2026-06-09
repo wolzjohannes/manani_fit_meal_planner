@@ -265,6 +265,11 @@ class MacroTemplate(db.Model):
     protein_pct: float = db.Column(db.Float, nullable=False)
     carbs_pct: float = db.Column(db.Float, nullable=False)
     fat_pct: float = db.Column(db.Float, nullable=False)
+    calculation_mode: str = db.Column(
+        db.String(10), nullable=False, default="pct", server_default="pct"
+    )
+    protein_g_per_kg: float | None = db.Column(db.Float, nullable=True)
+    fat_g_per_kg: float | None = db.Column(db.Float, nullable=True)
 
     def __repr__(self) -> str:
         return f"MacroTemplate(goal={self.goal_name!r})"

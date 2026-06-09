@@ -4,7 +4,22 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>{{ plan.name }}</h1>
+    <div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap">
+      <h1 id="plan-name-display">{{ plan.name }}</h1>
+      <button type="button" class="btn btn--ghost btn--sm"
+              onclick="toggleRename()">Umbenennen</button>
+    </div>
+    <form id="rename-form" method="post"
+          action="{{ url_for('plans_rename', plan_id=plan.id) }}"
+          style="display:none; margin-top:0.5rem">
+      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap">
+        <input type="text" name="name" value="{{ plan.name }}"
+               style="min-width:260px; padding:0.35rem 0.6rem; border:1px solid var(--border, #ccc); border-radius:var(--radius); font-size:1rem">
+        <button type="submit" class="btn btn--primary btn--sm">Speichern</button>
+        <button type="button" class="btn btn--ghost btn--sm"
+                onclick="toggleRename()">Abbrechen</button>
+      </div>
+    </form>
     <p class="subtitle">{{ plan.client.name }} · {{ plan.goal }} · {{ plan.kcal_target }} kcal
       <span class="badge badge--{{ plan.status }}">{{ plan.status }}</span>
     </p>
@@ -129,4 +144,11 @@
     </div>
   </div>
 {% endfor %}
+
+<script>
+function toggleRename() {
+  const form = document.getElementById('rename-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+</script>
 {% endblock %}

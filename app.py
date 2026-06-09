@@ -280,6 +280,18 @@ def _register_routes(app: Flask) -> None:
         flash("Plan als final markiert.", "success")
         return redirect(url_for("plans_edit", plan_id=plan_id))
 
+    @app.route("/plans/<int:plan_id>/rename", methods=["POST"])
+    def plans_rename(plan_id: int) -> Response:
+        plan = db.get_or_404(MealPlan, plan_id)
+        new_name = request.form.get("name", "").strip()
+        if new_name:
+            plan.name = new_name
+            db.session.commit()
+            flash("Plan-Name aktualisiert.", "success")
+        else:
+            flash("Name darf nicht leer sein.", "danger")
+        return redirect(url_for("plans_edit", plan_id=plan_id))
+
     @app.route("/plans/<int:plan_id>/delete", methods=["POST"])
     def plans_delete(plan_id: int):
         plan = MealPlan.query.get_or_404(plan_id)
@@ -449,6 +461,7 @@ def _register_routes(app: Flask) -> None:
                 "logo_path",
                 "primary_color",
                 "secondary_color",
+                "bg_color",
                 "font_family",
                 "coach_name",
                 "coach_contact",
@@ -458,14 +471,32 @@ def _register_routes(app: Flask) -> None:
                 "macro_tolerance_pct",
             ]
         }
+
+        logo_path_str = settings.get("logo_path") or ""
+        logo_preview_url = None
+        logo_file_missing = False
+        if logo_path_str:
+            logo_path_obj = Path(logo_path_str)
+            if logo_path_obj.exists():
+                logo_preview_url = url_for(
+                    "static", filename=f"uploads/{logo_path_obj.name}"
+                )
+            else:
+                logo_file_missing = True
+
         return render_template(
-            "settings.html", settings=settings, macro_templates=macro_templates
+            "settings.html",
+            settings=settings,
+            macro_templates=macro_templates,
+            logo_preview_url=logo_preview_url,
+            logo_file_missing=logo_file_missing,
         )
 
     def _save_settings() -> None:
         text_keys = [
             "primary_color",
             "secondary_color",
+            "bg_color",
             "font_family",
             "coach_name",
             "coach_contact",
@@ -488,13 +519,22 @@ def _register_routes(app: Flask) -> None:
                 AppSettings.set("logo_path", str(save_path))
 
         for tmpl in MacroTemplate.query.all():
-            p = request.form.get(f"protein_{tmpl.goal_name}")
-            c = request.form.get(f"carbs_{tmpl.goal_name}")
-            f = request.form.get(f"fat_{tmpl.goal_name}")
-            if p and c and f:
-                tmpl.protein_pct = float(p)
-                tmpl.carbs_pct = float(c)
-                tmpl.fat_pct = float(f)
+            gn = tmpl.goal_name
+            mode = request.form.get(f"mode_{gn}", "pct")
+            tmpl.calculation_mode = mode
+            if mode == "g_per_kg":
+                p_gkg = request.form.get(f"protein_gkg_{gn}", "").strip()
+                f_gkg = request.form.get(f"fat_gkg_{gn}", "").strip()
+                tmpl.protein_g_per_kg = float(p_gkg) if p_gkg else None
+                tmpl.fat_g_per_kg = float(f_gkg) if f_gkg else None
+            else:
+                p = request.form.get(f"protein_{gn}")
+                c = request.form.get(f"carbs_{gn}")
+                f = request.form.get(f"fat_{gn}")
+                if p and c and f:
+                    tmpl.protein_pct = float(p)
+                    tmpl.carbs_pct = float(c)
+                    tmpl.fat_pct = float(f)
         db.session.commit()
 
     # ------------------------------------------------------------------ #
