@@ -80,6 +80,12 @@ class MealPlan(db.Model):
         order_by="MealSlot.position",
         cascade="all, delete-orphan",
     )
+    supplements = db.relationship(
+        "PlanSupplement",
+        back_populates="plan",
+        order_by="PlanSupplement.position",
+        cascade="all, delete-orphan",
+    )
 
     def get_macro_overrides(self) -> dict:
         """Gibt plan-spezifische Makro-Einstellungen als dict zurück."""
@@ -93,7 +99,7 @@ class MealPlan(db.Model):
 
 
 class MealSlot(db.Model):
-    """Eine Mahlzeit-Position innerhalb eines Plans mit 2 Gericht-Varianten."""
+    """Eine Mahlzeit-Position innerhalb eines Plans mit beliebig vielen Varianten."""
 
     __tablename__ = "meal_slots"
     __allow_unmapped__ = True
@@ -106,12 +112,14 @@ class MealSlot(db.Model):
     label: str | None = db.Column(db.String(100))
     kcal_target: float = db.Column(db.Float, nullable=False)
     guidelines_text: str | None = db.Column(db.String(200))
-    variant_a_dish_id: int | None = db.Column(db.Integer, db.ForeignKey("dishes.id"))
-    variant_b_dish_id: int | None = db.Column(db.Integer, db.ForeignKey("dishes.id"))
 
     plan = db.relationship("MealPlan", back_populates="meal_slots")
-    variant_a_dish = db.relationship("Dish", foreign_keys=[variant_a_dish_id])
-    variant_b_dish = db.relationship("Dish", foreign_keys=[variant_b_dish_id])
+    variants = db.relationship(
+        "MealVariant",
+        back_populates="meal_slot",
+        order_by="MealVariant.variant",
+        cascade="all, delete-orphan",
+    )
     scaled_ingredients = db.relationship(
         "PlanDishIngredient",
         back_populates="meal_slot",
@@ -120,6 +128,29 @@ class MealSlot(db.Model):
 
     def __repr__(self) -> str:
         return f"MealSlot(plan={self.plan_id}, pos={self.position})"
+
+
+class MealVariant(db.Model):
+    """Eine Gericht-Variante (A, B, C, …) innerhalb eines MealSlots."""
+
+    __tablename__ = "meal_variants"
+    __allow_unmapped__ = True
+
+    id: int = db.Column(db.Integer, primary_key=True)
+    meal_slot_id: int = db.Column(
+        db.Integer, db.ForeignKey("meal_slots.id"), nullable=False
+    )
+    variant: str = db.Column(db.String(1), nullable=False)
+    dish_id: int | None = db.Column(db.Integer, db.ForeignKey("dishes.id"))
+
+    meal_slot = db.relationship("MealSlot", back_populates="variants")
+    dish = db.relationship("Dish")
+
+    def __repr__(self) -> str:
+        return (
+            f"MealVariant(slot={self.meal_slot_id}, "
+            f"variant={self.variant}, dish={self.dish_id})"
+        )
 
 
 class PlanDishIngredient(db.Model):
@@ -289,6 +320,53 @@ class MacroTemplate(db.Model):
 
     def __repr__(self) -> str:
         return f"MacroTemplate(goal={self.goal_name!r})"
+
+
+class Supplement(db.Model):
+    """Nahrungsergänzungsmittel für die Supplement-Datenbank."""
+
+    __tablename__ = "supplements"
+    __allow_unmapped__ = True
+
+    id: int = db.Column(db.Integer, primary_key=True)
+    name: str = db.Column(db.String(100), nullable=False)
+    description: str | None = db.Column(db.Text, nullable=True)
+    unit: str = db.Column(db.String(30), nullable=False, default="Kapsel")
+    is_active: bool = db.Column(db.Boolean, default=True)
+
+    plan_supplements = db.relationship(
+        "PlanSupplement",
+        back_populates="supplement",
+        cascade="all, delete-orphan",
+    )
+
+    def __repr__(self) -> str:
+        return f"Supplement(name={self.name!r}, unit={self.unit!r})"
+
+
+class PlanSupplement(db.Model):
+    """Supplement-Eintrag für einen Ernährungsplan."""
+
+    __tablename__ = "plan_supplements"
+    __allow_unmapped__ = True
+
+    id: int = db.Column(db.Integer, primary_key=True)
+    plan_id: int = db.Column(
+        db.Integer, db.ForeignKey("meal_plans.id", ondelete="CASCADE"), nullable=False
+    )
+    supplement_id: int = db.Column(
+        db.Integer, db.ForeignKey("supplements.id"), nullable=False
+    )
+    amount: str | None = db.Column(db.String(50), nullable=True)
+    unit_override: str | None = db.Column(db.String(30), nullable=True)
+    note: str | None = db.Column(db.String(500), nullable=True)
+    position: int = db.Column(db.Integer, default=0)
+
+    plan = db.relationship("MealPlan", back_populates="supplements")
+    supplement = db.relationship("Supplement", back_populates="plan_supplements")
+
+    def __repr__(self) -> str:
+        return f"PlanSupplement(plan_id={self.plan_id}, supplement={self.supplement.name!r})"
 
 
 class AppSettings(db.Model):

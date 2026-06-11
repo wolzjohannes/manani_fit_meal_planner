@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}{% if supplement %}Supplement bearbeiten{% else %}Neues Supplement{% endif %} · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:600px; margin:0 auto; padding:2rem;">
+  <h1>{% if supplement %}{{ supplement.name }}{% else %}Neues Supplement{% endif %}</h1>
+
+  <form method="post" class="form">
+    <div class="form-group">
+      <label for="name">Name *</label>
+      <input type="text" id="name" name="name" value="{{ supplement.name if supplement else '' }}" required style="width:100%;">
+    </div>
+
+    <div class="form-group">
+      <label for="unit">Einheit</label>
+      <input type="text" id="unit" name="unit" value="{{ supplement.unit if supplement else 'Kapsel' }}" style="width:100%;" placeholder="z.B. Kapsel, Tablette, g, ml">
+    </div>
+
+    <div class="form-group">
+      <label for="description">Beschreibung</label>
+      <textarea id="description" name="description" rows="4" style="width:100%;">{{ supplement.description or '' }}</textarea>
+    </div>
+
+    {% if supplement %}
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:.5rem; cursor:pointer;">
+        <input type="checkbox" name="is_active" {% if supplement.is_active %}checked{% endif %}>
+        Aktiv
+      </label>
+    </div>
+    {% endif %}
+
+    <div style="display:flex; gap:1rem; margin-top:2rem;">
+      <button type="submit" class="btn btn-primary">
+        {% if supplement %}Speichern{% else %}Erstellen{% endif %}
+      </button>
+      <a href="{{ url_for('supplements_list') }}" class="btn btn--ghost">Abbrechen</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

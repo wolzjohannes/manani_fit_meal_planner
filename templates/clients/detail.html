@@ -56,8 +56,22 @@
             <td>{{ p.goal }}</td>
             <td><span class="badge badge--{{ p.status }}">{{ p.status }}</span></td>
             <td class="actions">
+              <a href="{{ url_for('plans_preview', plan_id=p.id) }}" class="btn btn--sm btn--ghost">Vorschau</a>
               <a href="{{ url_for('plans_edit', plan_id=p.id) }}" class="btn btn--sm">Öffnen</a>
               <a href="{{ url_for('plans_pdf', plan_id=p.id) }}" class="btn btn--sm btn--primary">PDF</a>
+              <form method="post" action="{{ url_for('plans_duplicate', plan_id=p.id) }}" style="display:inline">
+                <button type="submit" class="btn btn--sm btn--ghost">Duplizieren</button>
+              </form>
+              <form method="post" action="{{ url_for('plans_update_status', plan_id=p.id) }}" style="display:inline">
+                {% if p.status == 'draft' %}
+                  <button type="submit" name="status" value="final" class="btn btn--sm btn--ghost">→ Final</button>
+                {% else %}
+                  <button type="submit" name="status" value="draft" class="btn btn--sm btn--ghost">→ Draft</button>
+                {% endif %}
+              </form>
+              <form method="post" action="{{ url_for('plans_delete', plan_id=p.id) }}" style="display:inline" onsubmit="return confirm('Plan wirklich löschen?')">
+                <button type="submit" class="btn btn--sm btn--ghost" style="color:var(--danger)">Löschen</button>
+              </form>
             </td>
           </tr>
           {% endfor %}

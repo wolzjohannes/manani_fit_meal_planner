@@ -11,6 +11,7 @@ from models import (
     MacroTemplate,
     MealPlan,
     MealSlot,
+    MealVariant,
     PlanDishIngredient,
     db,
 )
@@ -29,6 +30,17 @@ _CATEGORY_BY_POSITION = {
 }
 
 _LIGHT_FACTOR = 0.70
+
+DEFAULT_VARIANT_FREEDOM_TEXT = (
+    "Du darfst jederzeit eigene Varianten zusammenstellen, solange du dich an die "
+    "vorgegebenen Kalorien und Makronährstoffe hältst. Am besten nutzt du dafür eine "
+    "Tracking-App. Wir empfehlen dir jedoch, dich an diesen Plan zu halten."
+)
+
+
+def _variant_letter(index: int) -> str:
+    """Gibt den Varianten-Buchstaben für einen 0-basierten Index zurück (0→A)."""
+    return chr(ord("A") + index)
 
 
 @dataclass
@@ -433,20 +445,25 @@ def generate_plan(
             label=label,
             kcal_target=round(slot_kcal, 1),
             guidelines_text=guidelines,
-            variant_a_dish_id=dish_a.id if dish_a else None,
-            variant_b_dish_id=dish_b.id if dish_b else None,
         )
         db.session.add(slot)
         db.session.flush()
 
-        if dish_a:
-            for ing in _scale_dish(dish_a, slot_kcal, "A", slot.id, warnings, i):
-                db.session.add(ing)
-                total_actual_kcal += ing.kcal
+        variant_dishes: list[Dish] = []
+        if dish_a is not None:
+            variant_dishes.append(dish_a)
+        if dish_b is not None and dish_b is not dish_a:
+            variant_dishes.append(dish_b)
 
-        if dish_b and dish_b != dish_a:
-            for ing in _scale_dish(dish_b, slot_kcal, "B", slot.id, warnings, i):
+        for idx, dish in enumerate(variant_dishes):
+            letter = _variant_letter(idx)
+            db.session.add(
+                MealVariant(meal_slot_id=slot.id, variant=letter, dish_id=dish.id)
+            )
+            for ing in _scale_dish(dish, slot_kcal, letter, slot.id, warnings, i):
                 db.session.add(ing)
+                if letter == "A":
+                    total_actual_kcal += ing.kcal
 
     _validate_daily_macros(plan, warnings, tolerance_pct)
 
@@ -569,32 +586,111 @@ def get_shopping_list(plan: MealPlan, variant: str) -> list[dict]:
     return result
 
 
+def slot_variant_letters(slot: MealSlot) -> list[str]:
+    """Gibt die Varianten-Buchstaben eines Slots sortiert zurück."""
+    return sorted(v.variant for v in slot.variants)
+
+
+def plan_variant_letters(plan: MealPlan) -> list[str]:
+    """Gibt alle im Plan vorkommenden Varianten-Buchstaben sortiert zurück."""
+    letters: set[str] = set()
+    for slot in plan.meal_slots:
+        for v in slot.variants:
+            letters.add(v.variant)
+    return sorted(letters)
+
+
 def swap_variant(slot: MealSlot, variant: str, new_dish_id: int) -> None:
     """Tauscht das Gericht einer Variante aus und skaliert neu.
 
     Args:
         slot: Der MealSlot der geändert werden soll.
-        variant: "A" oder "B".
+        variant: Varianten-Buchstabe ("A", "B", "C", …).
         new_dish_id: ID des neuen Gerichts.
     """
     new_dish = Dish.query.get(new_dish_id)
     if new_dish is None:
         raise ValueError(f"Gericht {new_dish_id} nicht gefunden.")
 
+    mv = next((v for v in slot.variants if v.variant == variant), None)
+    if mv is None:
+        raise ValueError(f"Variante {variant} nicht gefunden.")
+
     for ing in list(slot.scaled_ingredients):
         if ing.variant == variant:
             db.session.delete(ing)
     db.session.flush()
 
-    if variant == "A":
-        slot.variant_a_dish_id = new_dish_id
-    else:
-        slot.variant_b_dish_id = new_dish_id
+    mv.dish_id = new_dish_id
 
     warnings: list[ValidationWarning] = []
     for ing in _scale_dish(
         new_dish, float(slot.kcal_target), variant, slot.id, warnings, slot.position
     ):
         db.session.add(ing)
+
+    db.session.commit()
+
+
+def add_variant(slot: MealSlot, dish_id: int) -> None:
+    """Fügt eine weitere Variante mit dem nächsten freien Buchstaben hinzu.
+
+    Args:
+        slot: Der MealSlot, dem die Variante hinzugefügt wird.
+        dish_id: ID des Gerichts für die neue Variante.
+
+    Raises:
+        ValueError: Wenn das Gericht nicht existiert.
+    """
+    new_dish = Dish.query.get(dish_id)
+    if new_dish is None:
+        raise ValueError(f"Gericht {dish_id} nicht gefunden.")
+
+    letter = _variant_letter(len(slot.variants))
+    db.session.add(MealVariant(meal_slot_id=slot.id, variant=letter, dish_id=dish_id))
+
+    warnings: list[ValidationWarning] = []
+    for ing in _scale_dish(
+        new_dish, float(slot.kcal_target), letter, slot.id, warnings, slot.position
+    ):
+        db.session.add(ing)
+
+    db.session.commit()
+
+
+def remove_variant(slot: MealSlot, variant: str) -> None:
+    """Entfernt eine Variante und buchstabiert die verbleibenden neu durch.
+
+    Args:
+        slot: Der MealSlot, aus dem die Variante entfernt wird.
+        variant: Varianten-Buchstabe ("A", "B", "C", …).
+
+    Raises:
+        ValueError: Wenn die Variante nicht existiert oder es die letzte ist.
+    """
+    mv = next((v for v in slot.variants if v.variant == variant), None)
+    if mv is None:
+        raise ValueError(f"Variante {variant} nicht gefunden.")
+    if len(slot.variants) <= 1:
+        raise ValueError("Die letzte Variante kann nicht entfernt werden.")
+
+    for ing in list(slot.scaled_ingredients):
+        if ing.variant == variant:
+            db.session.delete(ing)
+    db.session.delete(mv)
+    db.session.flush()
+
+    remaining = sorted(
+        (v for v in slot.variants if v.variant != variant),
+        key=lambda v: v.variant,
+    )
+    for idx, mv_remaining in enumerate(remaining):
+        new_letter = _variant_letter(idx)
+        if mv_remaining.variant != new_letter:
+            old_letter = mv_remaining.variant
+            for ing in slot.scaled_ingredients:
+                if ing.variant == old_letter:
+                    ing.variant = new_letter
+            mv_remaining.variant = new_letter
 
     db.session.commit()

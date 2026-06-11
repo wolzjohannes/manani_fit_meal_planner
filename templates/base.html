@@ -24,6 +24,7 @@
       <li><a href="{{ url_for('clients_list') }}" {% if request.endpoint and 'clients' in request.endpoint %}class="active"{% endif %}>Clients</a></li>
       <li><a href="{{ url_for('plans_new') }}" {% if request.endpoint and 'plans_new' in request.endpoint %}class="active"{% endif %}>Neuer Plan</a></li>
       <li><a href="{{ url_for('dishes_list') }}" {% if request.endpoint and 'dishes' in request.endpoint %}class="active"{% endif %}>Gerichte</a></li>
+      <li><a href="{{ url_for('supplements_list') }}" {% if request.endpoint and 'supplements' in request.endpoint %}class="active"{% endif %}>Supplements</a></li>
       <li><a href="{{ url_for('settings_view') }}" {% if request.endpoint == 'settings_view' %}class="active"{% endif %}>Einstellungen</a></li>
     </ul>
   </nav>
