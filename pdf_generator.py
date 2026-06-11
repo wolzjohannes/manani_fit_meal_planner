@@ -11,7 +11,13 @@ import matplotlib.pyplot as plt
 matplotlib.use("Agg")
 
 from models import AppSettings, MealPlan
-from planner import get_plan_total_macros, get_shopping_list, get_slot_macros
+from planner import (
+    DEFAULT_VARIANT_FREEDOM_TEXT,
+    get_plan_total_macros,
+    get_shopping_list,
+    get_slot_macros,
+    plan_variant_letters,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,15 +43,37 @@ def _settings() -> dict[str, str]:
         "coach_contact",
         "disclaimer_text",
     ]
-    return {k: AppSettings.get(k, "") or "" for k in keys}
+    result = {k: AppSettings.get(k, "") or "" for k in keys}
+    result["variant_freedom_text"] = (
+        AppSettings.get("variant_freedom_text", "") or DEFAULT_VARIANT_FREEDOM_TEXT
+    )
+    return result
 
 
-def _logo_base64() -> str | None:
-    """Liest das statische MANANI FIT Logo als Base64-Data-URL."""
+def _logo_base64(primary_color: str) -> str | None:
+    """Liest das statische MANANI FIT Logo als Base64-Data-URL.
+
+    Cropped den transparenten Außenrand und flattet Alpha-Kanal auf Primary Color,
+    um WeasyPrint-Compositing-Probleme mit RGBA-PNGs zu vermeiden.
+    """
     if not _STATIC_LOGO.exists():
         _LOGGER.warning("Statisches Logo nicht gefunden: %s", _STATIC_LOGO)
         return None
-    data = base64.b64encode(_STATIC_LOGO.read_bytes()).decode()
+    from PIL import Image
+
+    img = Image.open(_STATIC_LOGO).convert("RGBA")
+    bbox = img.getbbox()
+    if bbox:
+        img = img.crop(bbox)
+
+    hex_color = primary_color.lstrip("#")
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    bg = Image.new("RGB", img.size, (r, g, b))
+    bg.paste(img, mask=img.split()[3])
+
+    buf = io.BytesIO()
+    bg.save(buf, format="PNG")
+    data = base64.b64encode(buf.getvalue()).decode()
     return f"data:image/png;base64,{data}"
 
 
@@ -94,7 +122,7 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     coach_contact = s["coach_contact"] or ""
     disclaimer = s["disclaimer_text"] or ""
 
-    logo_src = _logo_base64()
+    logo_src = _logo_base64(primary)
     hero_logo_src = _hero_logo_base64()
     logo_left = (
         f'<img class="logo" src="{logo_src}" alt="MANANI FIT">'
@@ -144,59 +172,65 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     </table>
     """
 
+    def _variant_html(slot, variant_letter: str, dish, macros_slot) -> str:
+        if dish is None:
+            return f"<p><em>Keine Variante {variant_letter} verfügbar.</em></p>"
+        ings = [i for i in slot.scaled_ingredients if i.variant == variant_letter]
+        rows = "".join(
+            f"<tr><td>{i.food_item.name}</td>"
+            f"<td class='amount'>{i.amount_g:.0f} g</td>"
+            f"<td class='kcal-col'>{i.kcal:.0f} kcal</td></tr>"
+            for i in ings
+        )
+        return f"""
+        <div class="variant-block">
+          <h4>Variante {variant_letter} — {dish.name}</h4>
+          <table class="ingredient-table">
+            <tr><th>Zutat</th><th>Menge</th><th>kcal</th></tr>
+            {rows}
+          </table>
+          <p class="slot-macros">
+            {macros_slot.kcal:.0f} kcal &nbsp;|&nbsp;
+            P: {macros_slot.protein_g:.0f} g &nbsp;
+            KH: {macros_slot.carbs_g:.0f} g &nbsp;
+            F: {macros_slot.fat_g:.0f} g
+          </p>
+        </div>
+        """
+
+    max_variants_per_page = 4
     slot_htmls = []
     for slot in plan.meal_slots:
-        macros_slot_a = get_slot_macros(slot, "A")
-        macros_slot_b = get_slot_macros(slot, "B")
-
-        def _variant_html(variant_letter: str, dish, macros_slot) -> str:
-            if dish is None:
-                return f"<p><em>Keine Variante {variant_letter} verfügbar.</em></p>"
-            ings = [
-                i for i in slot.scaled_ingredients if i.variant == variant_letter
-            ]
-            rows = "".join(
-                f"<tr><td>{i.food_item.name}</td>"
-                f"<td class='amount'>{i.amount_g:.0f} g</td>"
-                f"<td class='kcal-col'>{i.kcal:.0f} kcal</td></tr>"
-                for i in ings
+        variants = list(slot.variants)
+        for start in range(0, len(variants), max_variants_per_page):
+            chunk = variants[start : start + max_variants_per_page]
+            variant_blocks = "".join(
+                _variant_html(slot, v.variant, v.dish, get_slot_macros(slot, v.variant))
+                for v in chunk
             )
-            return f"""
-            <div class="variant-block">
-              <h4>Variante {variant_letter} — {dish.name}</h4>
-              <table class="ingredient-table">
-                <tr><th>Zutat</th><th>Menge</th><th>kcal</th></tr>
-                {rows}
-              </table>
-              <p class="slot-macros">
-                {macros_slot.kcal:.0f} kcal &nbsp;|&nbsp;
-                P: {macros_slot.protein_g:.0f} g &nbsp;
-                KH: {macros_slot.carbs_g:.0f} g &nbsp;
-                F: {macros_slot.fat_g:.0f} g
-              </p>
+            section_class = (
+                "meal-section meal-section--continued" if start > 0 else "meal-section"
+            )
+            slot_htmls.append(f"""
+            <div class="{section_class}">
+              <h3 class="meal-title">{slot.label or f"Mahlzeit {slot.position}"}
+                <span class="meal-kcal">{slot.kcal_target:.0f} kcal</span>
+              </h3>
+              <div class="variants-grid">
+                {variant_blocks}
+              </div>
             </div>
-            """
+            """)
 
-        slot_htmls.append(f"""
-        <div class="meal-section">
-          <h3 class="meal-title">{slot.label or f"Mahlzeit {slot.position}"}
-            <span class="meal-kcal">{slot.kcal_target:.0f} kcal</span>
-          </h3>
-          <div class="variants-grid">
-            {_variant_html("A", slot.variant_a_dish, macros_slot_a)}
-            {_variant_html("B", slot.variant_b_dish, macros_slot_b)}
-          </div>
-        </div>
-        """)
+    freedom_box = (
+        f'<p class="variant-freedom">{s["variant_freedom_text"]}</p>'
+        if s["variant_freedom_text"] else ""
+    )
+    meals_pages_html = (
+        f'<div class="page"><h2>Mahlzeiten</h2>{freedom_box}{"".join(slot_htmls)}</div>'
+    )
 
-    meals_pages_html = ""
-    for i in range(0, len(slot_htmls), 2):
-        group = slot_htmls[i:i + 2]
-        heading = "<h2>Mahlzeiten</h2>" if i == 0 else ""
-        meals_pages_html += f'<div class="page">{heading}{"".join(group)}</div>'
-
-    shopping_a = get_shopping_list(plan, "A")
-    shopping_b = get_shopping_list(plan, "B")
+    variant_letters = plan_variant_letters(plan)
 
     def _shopping_rows(items: list[dict]) -> str:
         return "".join(
@@ -204,26 +238,42 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
             for i in items
         )
 
-    shopping_html = f"""
-    <div class="shopping-section">
-      <h2>Einkaufsliste</h2>
-      <table class="shopping-table">
-        <tr>
-          <td class="shopping-col">
-            <h3>Variante A</h3>
+    shopping_cols_per_page = 3
+    shopping_sections = []
+    for start in range(0, len(variant_letters), shopping_cols_per_page):
+        letters = variant_letters[start : start + shopping_cols_per_page]
+        cols = "".join(
+            f"""<td class="shopping-col">
+            <h3>Variante {letter}</h3>
             <table class="ingredient-table">
               <tr><th>Lebensmittel</th><th>Menge</th></tr>
-              {_shopping_rows(shopping_a)}
+              {_shopping_rows(get_shopping_list(plan, letter))}
             </table>
-          </td>
-          <td class="shopping-col">
-            <h3>Variante B</h3>
-            <table class="ingredient-table">
-              <tr><th>Lebensmittel</th><th>Menge</th></tr>
-              {_shopping_rows(shopping_b)}
-            </table>
-          </td>
-        </tr>
+          </td>"""
+            for letter in letters
+        )
+        shopping_sections.append(
+            f'<div class="shopping-section"><h2>Einkaufsliste</h2>'
+            f'<table class="shopping-table"><tr>{cols}</tr></table></div>'
+        )
+    shopping_html = "".join(shopping_sections)
+
+    supplement_html = ""
+    if plan.include_supplements and plan.supplements:
+        rows = "".join(
+            f"<tr>"
+            f"<td>{ps.supplement.name}</td>"
+            f"<td class='supp-amount'>{ps.amount or '—'} {ps.unit_override or ps.supplement.unit if ps.amount else ''}</td>"
+            f"<td class='supp-note'>{ps.note or '—'}</td>"
+            f"</tr>"
+            for ps in plan.supplements
+        )
+        supplement_html = f"""
+    <div class="supplement-block">
+      <h2>Supplements</h2>
+      <table class="supplement-table">
+        <tr><th>Supplement</th><th>Menge</th><th>Notiz</th></tr>
+        {rows}
       </table>
     </div>
     """
@@ -248,11 +298,38 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       line-height: 1.6;
     }}
 
-    .page {{ padding: 20mm 18mm; background-color: {bg_color}; }}
+    .page {{ page: content; }}
 
     @page {{
       size: A4;
       margin: 0;
+    }}
+
+    @page content {{
+      size: A4;
+      margin: 20mm 18mm 16mm 18mm;
+      background-color: {bg_color};
+
+      @bottom-left {{
+        content: "{coach_name} · {coach_contact}";
+        width: 50%;
+        text-align: left;
+        font-size: 8pt;
+        color: #999;
+        border-top: 1px solid #e0e0e0;
+        padding-top: 3mm;
+        vertical-align: top;
+      }}
+      @bottom-right {{
+        content: "{client.name} · {created_str}";
+        width: 50%;
+        text-align: right;
+        font-size: 8pt;
+        color: #999;
+        border-top: 1px solid #e0e0e0;
+        padding-top: 3mm;
+        vertical-align: top;
+      }}
     }}
 
     /* Titelseite */
@@ -262,6 +339,8 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       background-position: center;
       color: white;
       padding: 12mm 18mm 8mm;
+      page-break-after: always;
+      min-height: 297mm;
     }}
     .cover .logo {{ max-height: 300px; max-width: 300px; object-fit: contain; }}
     .cover .hero-logo {{ max-height: 300px; max-width: 300px; object-fit: contain; }}
@@ -312,11 +391,37 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
     .macro-table td {{ color: white; }}
     .total-row td {{ font-weight: 700; background: rgba(255,255,255,0.05); border-top: 2px solid {primary}; color: white; }}
 
+    .macro-explanation {{
+      margin-top: 10mm;
+      font-size: 9pt;
+      color: #ccc;
+      line-height: 1.7;
+    }}
+    .macro-explanation h3 {{
+      color: {primary};
+      font-size: 12pt;
+      font-weight: 700;
+      margin-bottom: 3mm;
+    }}
+    .macro-explanation ul {{ margin: 2mm 0 0 5mm; }}
+
+    .variant-freedom {{
+      background: {secondary}22;
+      border-left: 4px solid {primary};
+      padding: 4mm 5mm;
+      margin-bottom: 6mm;
+      font-size: 9.5pt;
+      color: white;
+      border-radius: 4px;
+      line-height: 1.6;
+    }}
+
     /* Mahlzeiten */
     .meal-section {{
       margin-bottom: 10mm;
       page-break-inside: avoid;
     }}
+    .meal-section--continued {{ page-break-before: always; }}
     .meal-title {{
       font-size: 13pt;
       font-weight: 700;
@@ -342,9 +447,10 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       width: 48%;
       vertical-align: top;
       font-size: 10pt;
+      margin: 0 4% 4mm 0;
     }}
-    .variants-grid .variant-block:first-child {{
-      margin-right: 4%;
+    .variants-grid .variant-block:nth-child(2n) {{
+      margin-right: 0;
     }}
     .variant-block {{
       border: 1px solid rgba(255,255,255,0.12);
@@ -386,9 +492,9 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       width: 100%;
       border-collapse: collapse;
       margin-top: 6mm;
+      table-layout: fixed;
     }}
     .shopping-table td {{
-      width: 50%;
       vertical-align: top;
       padding-right: 10mm;
     }}
@@ -402,6 +508,24 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       margin-bottom: 3mm;
     }}
 
+    /* Supplements */
+    .supplement-block {{ margin-bottom: 10mm; }}
+    .supplement-table {{
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 120mm;
+      font-size: 10pt;
+    }}
+    .supplement-table th, .supplement-table td {{
+      padding: 3mm 4mm;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }}
+    .supplement-table th {{ background: rgba(255,255,255,0.12); font-weight:700; color:white; }}
+    .supplement-table td {{ color:#ddd; }}
+    .supp-amount {{ font-weight: 600; }}
+    .supp-note {{ color:#aaa; font-style:italic; }}
+
     /* Disclaimer */
     .disclaimer {{
       page-break-before: always;
@@ -410,20 +534,6 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
       line-height: 1.7;
     }}
     .disclaimer h2 {{ font-size: 14pt; margin-bottom: 6mm; }}
-
-    /* Footer */
-    .footer {{
-      position: fixed;
-      bottom: 8mm;
-      left: 18mm;
-      right: 18mm;
-      font-size: 8pt;
-      color: #999;
-      display: flex;
-      justify-content: space-between;
-      border-top: 1px solid #e0e0e0;
-      padding-top: 3mm;
-    }}
   </style>
 </head>
 <body>
@@ -461,6 +571,25 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
   <h2>Makro-Übersicht</h2>
   <div style="text-align:center; margin-bottom:8mm">{pie_svg}</div>
   {macros_table}
+  <div class="macro-explanation">
+    <h3>Was bedeuten Kalorien und Makros?</h3>
+    <p>
+      <strong>Kalorien (kcal)</strong> sind die Energie, die dein Körper aus der
+      Nahrung gewinnt. Über den Tag bestimmt die Kalorienbilanz, ob du Gewicht
+      auf- oder abbaust. <strong>Makronährstoffe</strong> („Makros") sind die drei
+      energieliefernden Bausteine deiner Ernährung:
+    </p>
+    <ul>
+      <li><strong>Protein</strong> (4 kcal/g) — Baustoff für Muskeln, sättigt stark.</li>
+      <li><strong>Kohlenhydrate</strong> (4 kcal/g) — Hauptenergiequelle für Training und Alltag.</li>
+      <li><strong>Fett</strong> (9 kcal/g) — wichtig für Hormone und Vitaminaufnahme.</li>
+    </ul>
+    <p>
+      Das Tortendiagramm zeigt, wie sich deine Tageskalorien auf diese drei Makros
+      verteilen. Wenn du dich an die angegebenen Gramm-Mengen hältst, erreichst du
+      automatisch dein Kalorien- und Makroziel.
+    </p>
+  </div>
 </div>
 
 <!-- Mahlzeiten -->
@@ -471,15 +600,11 @@ def _render_html(plan: MealPlan, upload_folder: str) -> str:
   {shopping_html}
 </div>
 
-<!-- Disclaimer -->
+<!-- Letzte Seite: Supplements + Hinweis -->
 <div class="page disclaimer">
+  {supplement_html}
   <h2>Hinweis</h2>
   <p>{disclaimer}</p>
-</div>
-
-<div class="footer">
-  <span>{coach_name} · {coach_contact}</span>
-  <span>{client.name} · {created_str}</span>
 </div>
 
 </body>
