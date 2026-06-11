@@ -25,10 +25,10 @@ A web application for fitness coaches to create personalized meal plans with mac
 | Client management | Store client profiles with biometrics, goals, allergies, and dietary restrictions |
 | Automated plan generation | Dish selection based on calorie targets, macro ratios, and client restrictions |
 | 500+ dishes | Recipe database covering breakfast, lunch, dinner, snacks, and supplements |
-| PDF export | Branded PDF with macro pie charts, shopping list, and coach disclaimer |
-| Shopping list | Auto-generated ingredient list with scaled quantities per plan |
-| Swap variants | Each meal slot has two dish variants — swap individually on the edit screen |
-| Branding settings | Customize logo, colors, coach name, and disclaimer text under Settings |
+| PDF export | Branded PDF with macro pie charts (incl. macro/kcal explainer), shopping list, and coach disclaimer |
+| Shopping list | Auto-generated ingredient list with scaled quantities per plan, per variant |
+| Multiple variants | Generation creates two variants (A/B) per meal; add or remove further variants (C, D, …) on the edit screen |
+| Branding settings | Customize logo, colors, coach name, disclaimer, and the "own variants" hint text under Settings |
 
 ---
 
@@ -181,7 +181,7 @@ Then open **http://localhost:5000** in your browser.
 1. **Go to Settings** (top-right nav) — enter your coach name and upload your logo
 2. **Add a client** — click *Clients* → *Neuer Client*, fill in biometrics and fitness goal
 3. **Generate a plan** — click *Neuer Plan*, select the client and calorie target, click generate
-4. **Edit the plan** — swap individual dish variants on the edit screen if needed
+4. **Edit the plan** — swap dish variants, or add/remove additional variants (C, D, …) per meal on the edit screen
 5. **Export PDF** — click the PDF button on the plan edit screen to download the client document
 
 ---
@@ -214,9 +214,9 @@ python app.py
 The PDF is generated with WeasyPrint and includes:
 
 - **Cover page** — client name, coach branding, calorie target
-- **Macro overview** — pie chart (protein / carbs / fat split)
-- **Meal plan** — all meal slots with both dish variants and ingredient quantities
-- **Shopping list** — aggregated ingredients across all meals
+- **Macro overview** — pie chart (protein / carbs / fat split) plus a short explainer of what calories and macros are
+- **Meal plan** — all meal slots with every dish variant and ingredient quantities, plus the "own variants" hint
+- **Shopping list** — aggregated ingredients across all meals, one column per variant
 - **Disclaimer** — configurable text from Settings
 
 The PDF layout uses fixed-size pages with CSS print rules. Logo and colors are pulled from Settings at generation time.

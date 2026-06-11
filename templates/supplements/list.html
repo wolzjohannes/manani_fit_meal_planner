@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Supplements · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:1200px; margin:0 auto; padding:2rem;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+    <h1>Supplements</h1>
+    <a href="{{ url_for('supplements_new') }}" class="btn btn-primary">Neues Supplement</a>
+  </div>
+
+  {% if supplements %}
+  <div class="card">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Einheit</th>
+          <th>Beschreibung</th>
+          <th style="text-align:center;">Aktiv</th>
+          <th style="text-align:center; width:120px;">Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in supplements %}
+        <tr>
+          <td><strong>{{ s.name }}</strong></td>
+          <td>{{ s.unit }}</td>
+          <td style="font-size:.9rem; color:#888;">{{ s.description or '—' }}</td>
+          <td style="text-align:center;">
+            {% if s.is_active %}
+            <span style="color:#10b981;">✓</span>
+            {% else %}
+            <span style="color:#888;">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            <a href="{{ url_for('supplements_edit', supplement_id=s.id) }}" class="btn btn--sm btn--ghost">Bearbeiten</a>
+            <form method="post" action="{{ url_for('supplements_delete', supplement_id=s.id) }}" style="display:inline;">
+              <button type="submit" class="btn btn--sm btn--ghost" style="color:var(--danger);" onclick="return confirm('Wirklich löschen?')">Löschen</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center; padding:3rem;">
+    <p style="color:#888; margin:0;">Keine Supplements vorhanden.</p>
+    <a href="{{ url_for('supplements_new') }}" class="btn btn-primary" style="margin-top:1rem;">Erstes Supplement erstellen</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

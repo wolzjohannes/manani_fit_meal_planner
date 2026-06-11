@@ -27,6 +27,13 @@
   <div class="header-actions">
     <a href="{{ url_for('plans_preview', plan_id=plan.id) }}" class="btn btn--secondary" target="_blank">Vorschau</a>
     <a href="{{ url_for('plans_pdf', plan_id=plan.id) }}" class="btn btn--primary">PDF exportieren</a>
+    <form method="post" action="{{ url_for('plans_regenerate', plan_id=plan.id) }}" style="display:inline"
+          onsubmit="return confirm('Alle Gerichte neu generieren?')">
+      <button type="submit" class="btn btn--secondary btn--sm">Neu generieren</button>
+    </form>
+    <form method="post" action="{{ url_for('plans_duplicate', plan_id=plan.id) }}" style="display:inline">
+      <button type="submit" class="btn btn--ghost btn--sm">Duplizieren</button>
+    </form>
     {% if plan.status == 'draft' %}
       <form method="post" action="{{ url_for('plans_finalize', plan_id=plan.id) }}" style="display:inline">
         <button type="submit" class="btn btn--secondary">Als final markieren</button>
@@ -41,18 +48,173 @@
 
 <!-- Makro-Übersicht -->
 <div class="card macro-bar">
-  <span><strong>Gesamt (Var. A):</strong></span>
+  <span><strong>Ziel:</strong></span>
+  <span>{{ target_macros.kcal|round|int }} kcal</span>
+  <span>P: {{ target_macros.protein_g|round|int }} g</span>
+  <span>KH: {{ target_macros.carbs_g|round|int }} g</span>
+  <span>F: {{ target_macros.fat_g|round|int }} g</span>
+</div>
+<div class="card macro-bar" style="opacity:.75;">
+  <span><strong>Ist (Var. A):</strong></span>
   <span>{{ total_macros.kcal|round|int }} kcal</span>
   <span>P: {{ total_macros.protein_g|round|int }} g</span>
   <span>KH: {{ total_macros.carbs_g|round|int }} g</span>
   <span>F: {{ total_macros.fat_g|round|int }} g</span>
 </div>
 
+<!-- Plan-Einstellungen -->
+{% set plan_ov = plan.get_macro_overrides() %}
+<details class="card" style="margin-bottom:1rem">
+  <summary style="cursor:pointer; font-weight:600; list-style:none; display:flex; align-items:center; gap:.5rem;">
+    <span style="font-size:1rem">▶</span> Plan-Einstellungen bearbeiten
+  </summary>
+  <form method="post" action="{{ url_for('plans_update_params', plan_id=plan.id) }}"
+        style="margin-top:1rem">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Kalorien-Ziel (kcal)</label>
+        <input type="number" name="kcal_target" value="{{ plan.kcal_target }}" min="800" max="6000" step="50">
+      </div>
+      <div class="form-group">
+        <label>Anzahl Mahlzeiten</label>
+        <input type="number" name="n_meals" value="{{ plan.n_meals }}" min="2" max="8">
+      </div>
+      <div class="form-group">
+        <label>Ziel</label>
+        <select name="goal">
+          {% for g in ['Abnehmen', 'Muskelaufbau', 'Halten'] %}
+            <option value="{{ g }}" {% if plan.goal == g %}selected{% endif %}>{{ g }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group form-group--full">
+        <label>Notizen</label>
+        <textarea name="notes" rows="2">{{ plan.notes or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:.5rem; cursor:pointer;">
+          <input type="checkbox" id="include_supplements_cb" name="include_supplements"
+                 {% if plan.include_supplements %}checked{% endif %}>
+          Supplements einschließen
+        </label>
+      </div>
+    </div>
+
+    <hr style="margin:1rem 0; border:none; border-top:1px solid var(--border,#e0e0e0)">
+    <h4 style="margin:0 0 .75rem">Plan-spezifische Makros <small>(leer = Klient-/Global-Template)</small></h4>
+    <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; margin-bottom:.75rem;">
+      <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+        <input type="radio" name="macro_mode_override" value=""
+               {% if not plan_ov %}checked{% endif %}
+               onchange="togglePlanMacroMode('')">
+        Klient/Global
+      </label>
+      <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+        <input type="radio" name="macro_mode_override" value="pct"
+               {% if plan_ov.get('mode') == 'pct' %}checked{% endif %}
+               onchange="togglePlanMacroMode('pct')">
+        Prozentual
+      </label>
+      <label style="display:flex; align-items:center; gap:.4rem; cursor:pointer;">
+        <input type="radio" name="macro_mode_override" value="g_per_kg"
+               {% if plan_ov.get('mode') == 'g_per_kg' %}checked{% endif %}
+               onchange="togglePlanMacroMode('g_per_kg')">
+        g/kg KG
+      </label>
+    </div>
+
+    <div id="plan-macro-pct"
+         style="display:{% if plan_ov.get('mode') == 'pct' %}flex{% else %}none{% endif %}; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem;">
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Protein %</label>
+        <input type="number" name="override_protein_pct" min="10" max="60" style="width:70px"
+               value="{{ plan_ov.get('protein_pct', '') }}">
+      </div>
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">KH %</label>
+        <input type="number" name="override_carbs_pct" min="10" max="70" style="width:70px"
+               value="{{ plan_ov.get('carbs_pct', '') }}">
+      </div>
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Fett %</label>
+        <input type="number" name="override_fat_pct" min="10" max="50" style="width:70px"
+               value="{{ plan_ov.get('fat_pct', '') }}">
+      </div>
+    </div>
+
+    <div id="plan-macro-gkg"
+         style="display:{% if plan_ov.get('mode') == 'g_per_kg' %}flex{% else %}none{% endif %}; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem;">
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Protein (g/kg)</label>
+        <input type="number" name="override_protein_g_per_kg" step="0.1" min="0.5" max="4.0" style="width:80px"
+               value="{{ plan_ov.get('protein_g_per_kg', '') }}" placeholder="z.B. 2.2">
+      </div>
+      <div style="display:flex; align-items:center; gap:.4rem;">
+        <label style="white-space:nowrap; font-size:.875rem;">Fett (g/kg)</label>
+        <input type="number" name="override_fat_g_per_kg" step="0.05" min="0.2" max="2.0" style="width:80px"
+               value="{{ plan_ov.get('fat_g_per_kg', '') }}" placeholder="z.B. 0.45">
+      </div>
+      <span style="font-size:.875rem; color:#888;">KH = verbleibende Kalorien</span>
+    </div>
+
+    <div class="form-actions" style="margin-top:1rem; padding-top:0">
+      <button type="submit" class="btn btn--primary">Speichern & neu generieren</button>
+    </div>
+  </form>
+</details>
+
+<!-- Supplement-Picker — eigene Form, nur sichtbar wenn Checkbox aktiv -->
+<div id="supplement-picker" class="card" style="display:{% if plan.include_supplements %}block{% else %}none{% endif %}; margin-bottom:1rem;">
+  <h4 style="margin:0 0 .75rem">Supplements</h4>
+  <form method="post" action="{{ url_for('plans_update_supplements', plan_id=plan.id) }}">
+    <div id="supplement-rows">
+      {% for ps in plan.supplements %}
+      <div class="supplement-row" style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem;">
+        <select name="supplement_id" style="flex:0 0 220px;">
+          <option value="">— Supplement wählen —</option>
+          {% for s in supplement_list %}
+          <option value="{{ s.id }}" {% if s.id == ps.supplement_id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="supplement_amount" value="{{ ps.amount or '' }}"
+               placeholder="Menge (z.B. 2)" style="width:80px; flex:0 0 80px;">
+        <input type="text" name="supplement_unit" value="{{ ps.unit_override or ps.supplement.unit if ps.supplement else '' }}"
+               placeholder="g / Kapsel / ml" style="width:90px; flex:0 0 90px;">
+        <input type="text" name="supplement_note" value="{{ ps.note or '' }}"
+               placeholder="Notiz (optional)" style="flex:1;">
+        <button type="button" onclick="this.closest('.supplement-row').remove()"
+                style="color:var(--danger)">✕</button>
+      </div>
+      {% endfor %}
+    </div>
+
+    <template id="supplement-row-template">
+      <div class="supplement-row" style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem;">
+        <select name="supplement_id" style="flex:0 0 220px;">
+          <option value="">— Supplement wählen —</option>
+          {% for s in supplement_list %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="supplement_amount" placeholder="Menge (z.B. 2)" style="width:80px; flex:0 0 80px;">
+        <input type="text" name="supplement_unit" placeholder="g / Kapsel / ml" style="width:90px; flex:0 0 90px;">
+        <input type="text" name="supplement_note" placeholder="Notiz (optional)" style="flex:1;">
+        <button type="button" onclick="this.closest('.supplement-row').remove()"
+                style="color:var(--danger)">✕</button>
+      </div>
+    </template>
+
+    <button type="button" onclick="addSupplementRow()" style="margin-bottom:.75rem;">
+      + Supplement hinzufügen
+    </button>
+    <br>
+    <button type="submit" class="btn btn--primary">Supplements speichern</button>
+  </form>
+</div>
+
 <!-- Mahlzeiten -->
 {% for slot in plan.meal_slots %}
-  {% set ma = slot_macros[slot.id]['A'] %}
-  {% set mb = slot_macros[slot.id]['B'] %}
-  <div class="card meal-editor">
+  <div class="card meal-editor" id="slot-{{ slot.id }}">
     <h3 class="meal-editor-title">
       {{ slot.label or 'Mahlzeit ' ~ slot.position }}
       <span class="meal-kcal">Ziel: {{ slot.kcal_target|round|int }} kcal</span>
@@ -62,86 +224,79 @@
     {% endif %}
 
     <div class="variants-editor-grid">
-      <!-- Variante A -->
-      <div class="variant-editor">
-        <div class="variant-header">
-          <strong>Variante A</strong>
-          {% if slot.variant_a_dish %}
-            <span>{{ slot.variant_a_dish.name }}</span>
+      {% for v in slot.variants %}
+        {% set mv = slot_macros[slot.id][v.variant] %}
+        <div class="variant-editor">
+          <div class="variant-header">
+            <strong>Variante {{ v.variant }}</strong>
+            {% if v.dish %}
+              <span>{{ v.dish.name }}</span>
+            {% endif %}
+            {% if slot.variants|length > 1 %}
+              <form method="post" action="{{ url_for('plans_remove_variant', plan_id=plan.id) }}"
+                    style="display:inline; margin-left:auto"
+                    onsubmit="return confirm('Variante {{ v.variant }} entfernen?')">
+                <input type="hidden" name="slot_id" value="{{ slot.id }}">
+                <input type="hidden" name="variant" value="{{ v.variant }}">
+                <button type="submit" class="btn btn--sm btn--ghost" title="Variante entfernen"
+                        style="color:var(--danger)">✕</button>
+              </form>
+            {% endif %}
+          </div>
+          {% if v.dish %}
+            <table class="data-table data-table--compact">
+              <thead><tr><th>Zutat</th><th>Menge</th><th>kcal</th></tr></thead>
+              <tbody>
+                {% for ing in slot.scaled_ingredients if ing.variant == v.variant %}
+                <tr>
+                  <td>{{ ing.food_item.name }}</td>
+                  <td class="text-right" style="white-space:nowrap">
+                    <form method="post" action="{{ url_for('plans_update_ingredient', plan_id=plan.id) }}"
+                          style="display:inline-flex; align-items:center; gap:.2rem; justify-content:flex-end">
+                      <input type="hidden" name="ingredient_id" value="{{ ing.id }}">
+                      <input type="number" name="new_amount_g" value="{{ ing.amount_g|round|int }}"
+                             min="1" max="2000" step="1" style="width:60px; padding:.1rem .25rem; text-align:right">
+                      <span style="font-size:.8rem">g</span>
+                      <button type="submit" class="btn btn--sm btn--ghost" title="Menge speichern">✓</button>
+                    </form>
+                  </td>
+                  <td class="text-right">{{ ing.kcal|round|int }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <p class="slot-macros">{{ mv.kcal|round|int }} kcal · P {{ mv.protein_g|round|int }} g · KH {{ mv.carbs_g|round|int }} g · F {{ mv.fat_g|round|int }} g</p>
+          {% else %}
+            <p class="empty-hint">Kein Gericht zugeordnet.</p>
           {% endif %}
-        </div>
-        {% if slot.variant_a_dish %}
-          <table class="data-table data-table--compact">
-            <thead><tr><th>Zutat</th><th>Menge</th><th>kcal</th></tr></thead>
-            <tbody>
-              {% for ing in slot.scaled_ingredients if ing.variant == 'A' %}
-              <tr>
-                <td>{{ ing.food_item.name }}</td>
-                <td class="text-right">{{ ing.amount_g|round|int }} g</td>
-                <td class="text-right">{{ ing.kcal|round|int }}</td>
-              </tr>
+
+          <form method="post" action="{{ url_for('plans_swap_variant', plan_id=plan.id) }}" class="swap-form">
+            <input type="hidden" name="slot_id" value="{{ slot.id }}">
+            <input type="hidden" name="variant" value="{{ v.variant }}">
+            <select name="new_dish_id" class="select-compact">
+              {% for d in all_dishes %}
+                <option value="{{ d.id }}" {% if v.dish_id == d.id %}selected{% endif %}>
+                  {{ d.name }} ({{ d.category|category_label }})
+                </option>
               {% endfor %}
-            </tbody>
-          </table>
-          <p class="slot-macros">{{ ma.kcal|round|int }} kcal · P {{ ma.protein_g|round|int }} g · KH {{ ma.carbs_g|round|int }} g · F {{ ma.fat_g|round|int }} g</p>
-        {% else %}
-          <p class="empty-hint">Kein Gericht zugeordnet.</p>
-        {% endif %}
-
-        <form method="post" action="{{ url_for('plans_swap_variant', plan_id=plan.id) }}" class="swap-form">
-          <input type="hidden" name="slot_id" value="{{ slot.id }}">
-          <input type="hidden" name="variant" value="A">
-          <select name="new_dish_id" class="select-compact">
-            {% for d in all_dishes %}
-              <option value="{{ d.id }}" {% if slot.variant_a_dish_id == d.id %}selected{% endif %}>
-                {{ d.name }} ({{ d.category|category_label }})
-              </option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="btn btn--sm">Tauschen</button>
-        </form>
-      </div>
-
-      <!-- Variante B -->
-      <div class="variant-editor">
-        <div class="variant-header">
-          <strong>Variante B</strong>
-          {% if slot.variant_b_dish %}
-            <span>{{ slot.variant_b_dish.name }}</span>
-          {% endif %}
+            </select>
+            <button type="submit" class="btn btn--sm">Tauschen</button>
+          </form>
         </div>
-        {% if slot.variant_b_dish %}
-          <table class="data-table data-table--compact">
-            <thead><tr><th>Zutat</th><th>Menge</th><th>kcal</th></tr></thead>
-            <tbody>
-              {% for ing in slot.scaled_ingredients if ing.variant == 'B' %}
-              <tr>
-                <td>{{ ing.food_item.name }}</td>
-                <td class="text-right">{{ ing.amount_g|round|int }} g</td>
-                <td class="text-right">{{ ing.kcal|round|int }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          <p class="slot-macros">{{ mb.kcal|round|int }} kcal · P {{ mb.protein_g|round|int }} g · KH {{ mb.carbs_g|round|int }} g · F {{ mb.fat_g|round|int }} g</p>
-        {% else %}
-          <p class="empty-hint">Kein Gericht zugeordnet.</p>
-        {% endif %}
-
-        <form method="post" action="{{ url_for('plans_swap_variant', plan_id=plan.id) }}" class="swap-form">
-          <input type="hidden" name="slot_id" value="{{ slot.id }}">
-          <input type="hidden" name="variant" value="B">
-          <select name="new_dish_id" class="select-compact">
-            {% for d in all_dishes %}
-              <option value="{{ d.id }}" {% if slot.variant_b_dish_id == d.id %}selected{% endif %}>
-                {{ d.name }} ({{ d.category|category_label }})
-              </option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="btn btn--sm">Tauschen</button>
-        </form>
-      </div>
+      {% endfor %}
     </div>
+
+    <!-- Variante hinzufügen -->
+    <form method="post" action="{{ url_for('plans_add_variant', plan_id=plan.id) }}" class="swap-form"
+          style="margin-top:.75rem">
+      <input type="hidden" name="slot_id" value="{{ slot.id }}">
+      <select name="new_dish_id" class="select-compact">
+        {% for d in all_dishes %}
+          <option value="{{ d.id }}">{{ d.name }} ({{ d.category|category_label }})</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn--sm btn--secondary">+ Variante hinzufügen</button>
+    </form>
   </div>
 {% endfor %}
 
@@ -149,6 +304,21 @@
 function toggleRename() {
   const form = document.getElementById('rename-form');
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+function togglePlanMacroMode(mode) {
+  document.getElementById('plan-macro-pct').style.display = mode === 'pct' ? 'flex' : 'none';
+  document.getElementById('plan-macro-gkg').style.display = mode === 'g_per_kg' ? 'flex' : 'none';
+}
+
+// Supplement-Picker toggle
+document.getElementById('include_supplements_cb').addEventListener('change', function() {
+  document.getElementById('supplement-picker').style.display = this.checked ? 'block' : 'none';
+});
+
+function addSupplementRow() {
+  const tpl = document.getElementById('supplement-row-template');
+  const clone = tpl.content.cloneNode(true);
+  document.getElementById('supplement-rows').appendChild(clone);
 }
 </script>
 {% endblock %}

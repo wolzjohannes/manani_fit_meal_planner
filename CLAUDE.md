@@ -70,7 +70,8 @@ Bei folgenden Änderungen die README sofort mitaktualisieren:
 |---|---|
 | `Client` | Klient mit Biometrie, Allergenen, Restriktionen (Tags als JSON) |
 | `MealPlan` | Tagesplan mit kcal-Ziel, verknüpft mit `Client` |
-| `MealSlot` | Einzelmahlzeit (3–8 pro Plan), hält `variant_a_dish_id` + `variant_b_dish_id` |
+| `MealSlot` | Einzelmahlzeit (3–8 pro Plan); `variants`-Relationship zu beliebig vielen `MealVariant` |
+| `MealVariant` | Eine Gericht-Variante (Buchstabe `A`/`B`/`C`…) eines `MealSlot`, verweist auf ein `Dish` |
 | `Dish` | Gericht mit Zutaten; `base_kcal` ist computed property über Ingredients |
 | `DishIngredient` | Basis-Zutatenmenge (in g) für ein Gericht |
 | `PlanDishIngredient` | Skalierte Zutatenmenge für einen konkreten MealSlot |
@@ -83,9 +84,17 @@ Bei folgenden Änderungen die README sofort mitaktualisieren:
 | Datei | Einstieg | Rückgabe |
 |---|---|---|
 | `planner.py` | `generate_plan(plan_id, ...)` | `GenerationResult(plan, warnings)` |
-| `planner.py` | `swap_variant(slot_id, variant, dish_id)` | `MealSlot` |
-| `planner.py` | `get_shopping_list(plan_id)` | `dict[str, dict]` |
+| `planner.py` | `swap_variant(slot, variant, dish_id)` | `None` (tauscht Gericht der Variante) |
+| `planner.py` | `add_variant(slot, dish_id)` | `None` (neue Variante mit nächstem Buchstaben) |
+| `planner.py` | `remove_variant(slot, variant)` | `None` (entfernt + buchstabiert neu durch) |
+| `planner.py` | `get_shopping_list(plan, variant)` | `list[dict]` |
 | `pdf_generator.py` | `generate_pdf(plan, upload_folder)` | `bytes` |
+
+**Varianten-Architektur:** Eine Mahlzeit hält N Varianten (`MealSlot.variants` → `MealVariant`).
+`PlanDishIngredient.variant` (String-Buchstabe) ordnet skalierte Zutaten einer Variante zu. Die
+Generierung erzeugt 2 Varianten (A/B); im Editor lassen sich weitere per `add_variant` hinzufügen bzw.
+per `remove_variant` entfernen. Die alten Spalten `variant_a_dish_id`/`variant_b_dish_id` wurden durch
+`MealVariant` ersetzt (Backfill via `_migrate_meal_variants` in `database.py`).
 
 ### Datenfluss: Plan erstellen
 
@@ -177,7 +186,7 @@ AppSettings.set("coach_name", "Mein Studio")
 db.session.commit()
 ```
 
-Bekannte Keys: `coach_name`, `primary_color`, `secondary_color`, `font_family`, `disclaimer_text`, `logo_path`, `portion_min_g`, `portion_max_g`, `macro_tolerance_pct`.
+Bekannte Keys: `coach_name`, `primary_color`, `secondary_color`, `font_family`, `disclaimer_text`, `variant_freedom_text`, `logo_path`, `portion_min_g`, `portion_max_g`, `macro_tolerance_pct`. Default für `variant_freedom_text`: `DEFAULT_VARIANT_FREEDOM_TEXT` in `planner.py`.
 
 ### SQLAlchemy 2.0 Kompatibilität
 
@@ -231,7 +240,8 @@ scale_factor = slot_kcal / dish.base_kcal
 
 - **`"leicht"` im Guideline-Text:** Reduziert Portion auf 70% der Slot-kcal (hardcoded, kein i18n).
 - **Makro-Template-Fallback:** Wenn Goal nicht in `MacroTemplate` gefunden → 35% P / 45% KH / 20% F.
-- **`swap_variant()`:** Raises `ValueError` wenn `dish_id` nicht existiert oder nicht zum Plan passt.
+- **`swap_variant()` / `add_variant()`:** Raisen `ValueError` wenn `dish_id` nicht existiert.
+- **`remove_variant()`:** Raises `ValueError` wenn die Variante nicht existiert oder es die letzte ist; nummeriert verbleibende Varianten lückenlos neu (A, B, C…).
 
 ---
 
@@ -258,16 +268,56 @@ brew install pango cairo libffi
 
 ### CSS-Paginierung (WeasyPrint-spezifisch)
 
+Seitenlayout über **zwei benannte `@page`-Kontexte** — nicht über `.page`-Padding:
+
 ```css
+@page { margin: 0; }                          /* Default: Cover (Vollbleed, KEIN Footer) */
+@page content {                               /* alle Inhaltsseiten */
+  margin: 20mm 18mm 16mm 18mm;                /* untere 16mm = Footer-Band + Reserve */
+  background-color: ...;
+  @bottom-left  { content: "<coach>";  width: 50%; text-align: left;  border-top: 1px solid #e0e0e0; }
+  @bottom-right { content: "<client>"; width: 50%; text-align: right; border-top: 1px solid #e0e0e0; }
+}
+.page { page: content; }
+
 page-break-after: always;       /* nach Cover/Makro-Seite */
 page-break-before: always;      /* Einkaufsliste + Disclaimer */
 page-break-inside: avoid;       /* Mahlzeit-Abschnitte zusammenhalten */
-position: fixed; bottom: 8mm;   /* Footer auf jeder Seite */
+.meal-section--continued { page-break-before: always; }  /* Varianten-Fortsetzung */
 ```
+
+**Generelle Layout-Regel:** Der untere `@page content`-Rand (16mm) reserviert auf **jeder**
+physischen Seite Platz für den Footer — so kann Inhalt nie darunter rutschen. Mahlzeiten
+fließen per Auto-Fill in eine einzige `<div class="page">`; WeasyPrint paginiert anhand der
+atomaren `.meal-section`-Blöcke (`page-break-inside: avoid`).
+
+**Footer = `@page`-Margin-Boxes**, KEIN fixiertes Div (ein `position: fixed`-Element würde
+relativ zur Inhaltsfläche statt zum Seitenrand positioniert und erschiene auch auf dem
+Cover). `@bottom-left`/`@bottom-right` mit je `width: 50%` ergeben eine **durchgehende**
+Trennlinie über die volle Inhaltsbreite (Coach links, Klient/Datum rechts). Eine leere
+`@bottom-center`-Box kollabiert und reißt die Linie auf — daher 50/50 statt Mittelbox.
+Cover nutzt das Default-`@page` ohne Margin-Boxes → bewusst kein Footer.
+
+**Varianten-Paginierung:** Pro Mahlzeit werden die Varianten in Blöcke zu **max. 4**
+gechunkt (`max_variants_per_page` in `_render_html`). Jeder Block ist eine eigene
+`.meal-section` mit identisch wiederholtem Trenner; Fortsetzungsblöcke (ab dem 5. Variant)
+erzwingen via `.meal-section--continued` einen Seitenumbruch.
+
+**Einkaufsliste-Paginierung:** Analog werden die Varianten-Spalten zu **max. 3** pro Seite
+gechunkt (`shopping_cols_per_page`); jede Gruppe ist eine eigene `.shopping-section`
+(`page-break-before: always`) mit wiederholter „Einkaufsliste"-Überschrift. `.shopping-table`
+nutzt `table-layout: fixed` für gleich breite Spalten.
 
 ---
 
 ## 7. Frontend-Templates
+
+### Vorschau ↔ PDF Konsistenz (Pflicht)
+
+`/plans/<id>/preview` (HTML-Vorschau) und `/plans/<id>/pdf` (WeasyPrint-PDF) müssen visuell stets übereinstimmen:
+- Gleiches Logo, gleiche Farben, gleiches Cover-Hintergrundbild
+- Gleicher Stil für Mahlzeiten-Trenner, Makro-Zeilen, Einkaufslisten-Header
+- Wer eine der beiden Seiten ändert (`templates/plans/preview.html` oder `pdf_generator.py`), aktualisiert die andere ebenfalls
 
 ### Template-Blöcke (`base.html`)
 

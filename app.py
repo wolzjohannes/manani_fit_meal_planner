@@ -17,7 +17,7 @@ from flask import (
     send_file,
     url_for,
 )
-from werkzeug.utils import secure_filename
+
 
 from database import init_db
 from models import (
@@ -29,14 +29,23 @@ from models import (
     MacroTemplate,
     MealPlan,
     MealSlot,
+    PlanDishIngredient,
+    PlanSupplement,
+    Supplement,
     db,
 )
 from planner import (
+    DEFAULT_VARIANT_FREEDOM_TEXT,
     GenerationResult,
+    add_variant,
+    calculate_macros,
     generate_plan,
     get_plan_total_macros,
     get_shopping_list,
     get_slot_macros,
+    plan_variant_letters,
+    remove_variant,
+    resolve_macro_overrides,
     swap_variant,
 )
 
@@ -44,7 +53,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _BASE_DIR = Path(__file__).parent
 _UPLOAD_FOLDER = _BASE_DIR / "static" / "uploads"
-_ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg"}
 
 
 def create_app() -> Flask:
@@ -163,6 +171,31 @@ def _register_routes(app: Flask) -> None:
                 client.birthdate = None
         else:
             client.birthdate = None
+
+        macro_mode = request.form.get("macro_mode_override", "").strip()
+        if macro_mode in ("pct", "g_per_kg"):
+            overrides: dict = {"mode": macro_mode}
+            if macro_mode == "g_per_kg":
+                p = request.form.get("override_protein_g_per_kg", "").strip()
+                f = request.form.get("override_fat_g_per_kg", "").strip()
+                if p:
+                    overrides["protein_g_per_kg"] = float(p)
+                if f:
+                    overrides["fat_g_per_kg"] = float(f)
+            else:
+                p = request.form.get("override_protein_pct", "").strip()
+                c = request.form.get("override_carbs_pct", "").strip()
+                f = request.form.get("override_fat_pct", "").strip()
+                if p:
+                    overrides["protein_pct"] = float(p)
+                if c:
+                    overrides["carbs_pct"] = float(c)
+                if f:
+                    overrides["fat_pct"] = float(f)
+            client.set_macro_overrides(overrides)
+        else:
+            client.set_macro_overrides({})
+
         return client
 
     # ------------------------------------------------------------------ #
@@ -204,6 +237,7 @@ def _register_routes(app: Flask) -> None:
             notes=notes,
             include_supplements=include_supplements,
             status="draft",
+            macro_overrides=client.macro_overrides,
         )
         db.session.add(plan)
         db.session.flush()
@@ -237,20 +271,27 @@ def _register_routes(app: Flask) -> None:
     def plans_edit(plan_id: int):
         plan = MealPlan.query.get_or_404(plan_id)
         all_dishes = Dish.query.filter_by(is_active=True).order_by(Dish.name).all()
+        supplement_list = Supplement.query.filter_by(is_active=True).order_by(Supplement.name).all()
         slot_macros = {
             slot.id: {
-                "A": get_slot_macros(slot, "A"),
-                "B": get_slot_macros(slot, "B"),
+                v.variant: get_slot_macros(slot, v.variant)
+                for v in slot.variants
             }
             for slot in plan.meal_slots
         }
         total_macros = get_plan_total_macros(plan, "A")
+        target_macros = calculate_macros(
+            float(plan.kcal_target), plan.goal, plan.client.weight_kg,
+            overrides=resolve_macro_overrides(plan),
+        )
         return render_template(
             "plans/editor.html",
             plan=plan,
             all_dishes=all_dishes,
+            supplement_list=supplement_list,
             slot_macros=slot_macros,
             total_macros=total_macros,
+            target_macros=target_macros,
         )
 
     @app.route("/plans/<int:plan_id>/swap_variant", methods=["POST"])
@@ -272,6 +313,202 @@ def _register_routes(app: Flask) -> None:
 
         return redirect(url_for("plans_edit", plan_id=plan_id))
 
+    @app.route("/plans/<int:plan_id>/add_variant", methods=["POST"])
+    def plans_add_variant(plan_id: int):
+        slot_id = int(request.form["slot_id"])
+        new_dish_id = int(request.form["new_dish_id"])
+
+        slot = MealSlot.query.get_or_404(slot_id)
+        if slot.plan_id != plan_id:
+            abort(400)
+
+        try:
+            add_variant(slot, new_dish_id)
+            flash("Variante hinzugefügt.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+
+        return redirect(url_for("plans_edit", plan_id=plan_id) + f"#slot-{slot_id}")
+
+    @app.route("/plans/<int:plan_id>/remove_variant", methods=["POST"])
+    def plans_remove_variant(plan_id: int):
+        slot_id = int(request.form["slot_id"])
+        variant = request.form["variant"].upper()
+
+        slot = MealSlot.query.get_or_404(slot_id)
+        if slot.plan_id != plan_id:
+            abort(400)
+
+        try:
+            remove_variant(slot, variant)
+            flash("Variante entfernt.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+
+        return redirect(url_for("plans_edit", plan_id=plan_id) + f"#slot-{slot_id}")
+
+    @app.route("/plans/<int:plan_id>/regenerate", methods=["POST"])
+    def plans_regenerate(plan_id: int):
+        plan = MealPlan.query.get_or_404(plan_id)
+        slots_data = [
+            {
+                "guidelines_text": s.guidelines_text or "",
+                "label": s.label or f"Mahlzeit {s.position}",
+            }
+            for s in sorted(plan.meal_slots, key=lambda s: s.position)
+        ]
+        result: GenerationResult = generate_plan(plan, slots_data)
+        db.session.commit()
+        for w in result.warnings:
+            flash(w.message, "warning")
+        flash("Plan neu generiert.", "success")
+        return redirect(url_for("plans_edit", plan_id=plan_id))
+
+    @app.route("/plans/<int:plan_id>/update_params", methods=["POST"])
+    def plans_update_params(plan_id: int):
+        plan = MealPlan.query.get_or_404(plan_id)
+        old_n_meals = plan.n_meals
+
+        kcal = request.form.get("kcal_target", "").strip()
+        n_meals = request.form.get("n_meals", "").strip()
+        goal = request.form.get("goal", "").strip()
+        notes = request.form.get("notes", "").strip() or None
+
+        if kcal:
+            plan.kcal_target = int(kcal)
+        if n_meals:
+            plan.n_meals = int(n_meals)
+        if goal:
+            plan.goal = goal
+        plan.notes = notes
+
+        macro_mode = request.form.get("macro_mode_override", "").strip()
+        if macro_mode in ("pct", "g_per_kg"):
+            overrides: dict = {"mode": macro_mode}
+            if macro_mode == "g_per_kg":
+                p = request.form.get("override_protein_g_per_kg", "").strip()
+                f = request.form.get("override_fat_g_per_kg", "").strip()
+                if p:
+                    overrides["protein_g_per_kg"] = float(p)
+                if f:
+                    overrides["fat_g_per_kg"] = float(f)
+            else:
+                p = request.form.get("override_protein_pct", "").strip()
+                c = request.form.get("override_carbs_pct", "").strip()
+                f = request.form.get("override_fat_pct", "").strip()
+                if p:
+                    overrides["protein_pct"] = float(p)
+                if c:
+                    overrides["carbs_pct"] = float(c)
+                if f:
+                    overrides["fat_pct"] = float(f)
+            plan.set_macro_overrides(overrides)
+        else:
+            plan.set_macro_overrides({})
+
+        db.session.flush()
+
+        # Nur wenn Mahlzeiten-Anzahl geändert: Neu generieren
+        if plan.n_meals != old_n_meals:
+            new_n = plan.n_meals
+            existing_slots = sorted(plan.meal_slots, key=lambda s: s.position)
+            slots_data = []
+            for i in range(1, new_n + 1):
+                existing = next((s for s in existing_slots if s.position == i), None)
+                slots_data.append(
+                    {
+                        "guidelines_text": existing.guidelines_text or "" if existing else "",
+                        "label": existing.label or f"Mahlzeit {i}" if existing else f"Mahlzeit {i}",
+                    }
+                )
+
+            result = generate_plan(plan, slots_data)
+            db.session.commit()
+            for w in result.warnings:
+                flash(w.message, "warning")
+            flash("Mahlzeiten-Anzahl geändert — Plan neu generiert.", "success")
+        else:
+            # Nur Parameter speichern, keine Neugenierung
+            db.session.commit()
+            flash("Plan-Einstellungen gespeichert.", "success")
+
+        return redirect(url_for("plans_edit", plan_id=plan_id))
+
+    @app.route("/plans/<int:plan_id>/supplements", methods=["POST"])
+    def plans_update_supplements(plan_id: int):
+        from models import PlanSupplement
+        plan = db.get_or_404(MealPlan, plan_id)
+        PlanSupplement.query.filter_by(plan_id=plan_id).delete()
+        supplement_ids = request.form.getlist("supplement_id")
+        amounts = request.form.getlist("supplement_amount")
+        unit_overrides = request.form.getlist("supplement_unit")
+        notes = request.form.getlist("supplement_note")
+        has_supplements = False
+        for position, (sid, amount, unit, note) in enumerate(zip(supplement_ids, amounts, unit_overrides, notes)):
+            if not sid:
+                continue
+            has_supplements = True
+            ps = PlanSupplement(
+                plan_id=plan_id,
+                supplement_id=int(sid),
+                amount=amount.strip() or None,
+                unit_override=unit.strip() or None,
+                note=note.strip() or None,
+                position=position,
+            )
+            db.session.add(ps)
+        plan.include_supplements = has_supplements
+        db.session.commit()
+        flash("Supplements gespeichert.", "success")
+        return redirect(url_for("plans_edit", plan_id=plan_id))
+
+    @app.route("/plans/<int:plan_id>/duplicate", methods=["POST"])
+    def plans_duplicate(plan_id: int):
+        original = MealPlan.query.get_or_404(plan_id)
+        new_plan = MealPlan(
+            client_id=original.client_id,
+            name=f"Kopie · {original.name}",
+            kcal_target=original.kcal_target,
+            n_meals=original.n_meals,
+            goal=original.goal,
+            notes=original.notes,
+            include_supplements=original.include_supplements,
+            macro_overrides=original.macro_overrides,
+            status="draft",
+        )
+        db.session.add(new_plan)
+        db.session.flush()
+        slots_data = [
+            {
+                "guidelines_text": s.guidelines_text or "",
+                "label": s.label or f"Mahlzeit {s.position}",
+            }
+            for s in sorted(original.meal_slots, key=lambda s: s.position)
+        ]
+        result = generate_plan(new_plan, slots_data)
+        db.session.commit()
+        for w in result.warnings:
+            flash(w.message, "warning")
+        flash(f"Plan dupliziert: {new_plan.name}", "success")
+        return redirect(url_for("plans_edit", plan_id=new_plan.id))
+
+    @app.route("/plans/<int:plan_id>/update_ingredient", methods=["POST"])
+    def plans_update_ingredient(plan_id: int):
+        ingredient_id = int(request.form["ingredient_id"])
+        new_amount_g = float(request.form["new_amount_g"])
+        ing = db.get_or_404(PlanDishIngredient, ingredient_id)
+        if ing.meal_slot.plan_id != plan_id:
+            abort(400)
+        slot_id = ing.meal_slot_id
+        macros = ing.food_item.macros_for(new_amount_g)
+        ing.amount_g = round(new_amount_g, 1)
+        ing.kcal = macros["kcal"]
+        ing.protein_g = macros["protein_g"]
+        ing.carbs_g = macros["carbs_g"]
+        ing.fat_g = macros["fat_g"]
+        db.session.commit()
+        return redirect(url_for("plans_edit", plan_id=plan_id) + f"#slot-{slot_id}")
+
     @app.route("/plans/<int:plan_id>/finalize", methods=["POST"])
     def plans_finalize(plan_id: int):
         plan = MealPlan.query.get_or_404(plan_id)
@@ -291,6 +528,16 @@ def _register_routes(app: Flask) -> None:
         else:
             flash("Name darf nicht leer sein.", "danger")
         return redirect(url_for("plans_edit", plan_id=plan_id))
+
+    @app.route("/plans/<int:plan_id>/update_status", methods=["POST"])
+    def plans_update_status(plan_id: int) -> Response:
+        plan = db.get_or_404(MealPlan, plan_id)
+        new_status = request.form.get("status", "").strip()
+        if new_status in ("draft", "final"):
+            plan.status = new_status
+            db.session.commit()
+            flash(f"Status auf '{new_status}' gesetzt.", "success")
+        return redirect(url_for("clients_detail", client_id=plan.client_id))
 
     @app.route("/plans/<int:plan_id>/delete", methods=["POST"])
     def plans_delete(plan_id: int):
@@ -333,29 +580,82 @@ def _register_routes(app: Flask) -> None:
         plan = MealPlan.query.get_or_404(plan_id)
         slot_macros = {
             slot.id: {
-                "A": get_slot_macros(slot, "A"),
-                "B": get_slot_macros(slot, "B"),
+                v.variant: get_slot_macros(slot, v.variant)
+                for v in slot.variants
             }
             for slot in plan.meal_slots
         }
         total_macros = get_plan_total_macros(plan, "A")
-        shopping_a = get_shopping_list(plan, "A")
-        shopping_b = get_shopping_list(plan, "B")
+        variant_letters = plan_variant_letters(plan)
+        shopping_lists = {
+            letter: get_shopping_list(plan, letter) for letter in variant_letters
+        }
         settings = {
             k: AppSettings.get(k, "")
-            for k in ["primary_color", "secondary_color", "coach_name", "coach_contact", "disclaimer_text"]
+            for k in ["primary_color", "secondary_color", "coach_name", "coach_contact", "disclaimer_text", "bg_color"]
         }
+        settings["variant_freedom_text"] = AppSettings.get(
+            "variant_freedom_text", DEFAULT_VARIANT_FREEDOM_TEXT
+        )
+        logo_url = url_for("static", filename="uploads/manani_fit_logo.png")
+        hero_logo_url = url_for("static", filename="uploads/become_hp_warrior_logo.png")
         return render_template(
             "plans/preview.html",
             plan=plan,
             slot_macros=slot_macros,
             total_macros=total_macros,
-            shopping_a=shopping_a,
-            shopping_b=shopping_b,
+            variant_letters=variant_letters,
+            shopping_lists=shopping_lists,
             settings=settings,
+            logo_url=logo_url,
+            hero_logo_url=hero_logo_url,
         )
 
     # ------------------------------------------------------------------ #
+    # Supplements                                                           #
+    # ------------------------------------------------------------------ #
+
+    @app.route("/supplements")
+    def supplements_list():
+        supplements = Supplement.query.order_by(Supplement.name).all()
+        return render_template("supplements/list.html", supplements=supplements)
+
+    @app.route("/supplements/new", methods=["GET", "POST"])
+    def supplements_new():
+        if request.method == "POST":
+            s = Supplement(
+                name=request.form["name"].strip(),
+                description=request.form.get("description", "").strip() or None,
+                unit=request.form.get("unit", "Kapsel").strip(),
+                is_active=True,
+            )
+            db.session.add(s)
+            db.session.commit()
+            flash("Supplement angelegt.", "success")
+            return redirect(url_for("supplements_list"))
+        return render_template("supplements/form.html", supplement=None)
+
+    @app.route("/supplements/<int:supplement_id>/edit", methods=["GET", "POST"])
+    def supplements_edit(supplement_id: int):
+        s = db.get_or_404(Supplement, supplement_id)
+        if request.method == "POST":
+            s.name = request.form["name"].strip()
+            s.description = request.form.get("description", "").strip() or None
+            s.unit = request.form.get("unit", "Kapsel").strip()
+            s.is_active = "is_active" in request.form
+            db.session.commit()
+            flash("Supplement gespeichert.", "success")
+            return redirect(url_for("supplements_list"))
+        return render_template("supplements/form.html", supplement=s)
+
+    @app.route("/supplements/<int:supplement_id>/delete", methods=["POST"])
+    def supplements_delete(supplement_id: int):
+        s = db.get_or_404(Supplement, supplement_id)
+        db.session.delete(s)
+        db.session.commit()
+        flash("Supplement gelöscht.", "success")
+        return redirect(url_for("supplements_list"))
+
     # Gerichte                                                             #
     # ------------------------------------------------------------------ #
 
@@ -458,7 +758,6 @@ def _register_routes(app: Flask) -> None:
         settings = {
             k: AppSettings.get(k, "")
             for k in [
-                "logo_path",
                 "primary_color",
                 "secondary_color",
                 "bg_color",
@@ -471,25 +770,14 @@ def _register_routes(app: Flask) -> None:
                 "macro_tolerance_pct",
             ]
         }
-
-        logo_path_str = settings.get("logo_path") or ""
-        logo_preview_url = None
-        logo_file_missing = False
-        if logo_path_str:
-            logo_path_obj = Path(logo_path_str)
-            if logo_path_obj.exists():
-                logo_preview_url = url_for(
-                    "static", filename=f"uploads/{logo_path_obj.name}"
-                )
-            else:
-                logo_file_missing = True
+        settings["variant_freedom_text"] = AppSettings.get(
+            "variant_freedom_text", DEFAULT_VARIANT_FREEDOM_TEXT
+        )
 
         return render_template(
             "settings.html",
             settings=settings,
             macro_templates=macro_templates,
-            logo_preview_url=logo_preview_url,
-            logo_file_missing=logo_file_missing,
         )
 
     def _save_settings() -> None:
@@ -501,6 +789,7 @@ def _register_routes(app: Flask) -> None:
             "coach_name",
             "coach_contact",
             "disclaimer_text",
+            "variant_freedom_text",
             "portion_min_g",
             "portion_max_g",
             "macro_tolerance_pct",
@@ -508,15 +797,6 @@ def _register_routes(app: Flask) -> None:
         for key in text_keys:
             if key in request.form:
                 AppSettings.set(key, request.form[key])
-
-        logo_file = request.files.get("logo_file")
-        if logo_file and logo_file.filename:
-            ext = logo_file.filename.rsplit(".", 1)[-1].lower()
-            if ext in _ALLOWED_LOGO_EXTENSIONS:
-                filename = secure_filename(f"logo.{ext}")
-                save_path = _UPLOAD_FOLDER / filename
-                logo_file.save(str(save_path))
-                AppSettings.set("logo_path", str(save_path))
 
         for tmpl in MacroTemplate.query.all():
             gn = tmpl.goal_name

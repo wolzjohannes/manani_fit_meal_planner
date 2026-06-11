@@ -10,15 +10,18 @@
   </div>
 </div>
 
-<div class="preview-paper">
+<div class="preview-paper" style="background:{{ settings.bg_color or '#FFFFFF' }}">
   <!-- Titelseite -->
-  <div class="preview-section preview-cover" style="background:{{ settings.primary_color or '#2D6A4F' }}; color:white">
-    <div class="preview-logo-text">{{ settings.coach_name or 'MANANI FIT' }}</div>
-    <div style="margin-top:3rem">
-      <h2 style="font-size:1.8rem; font-weight:700">Ernährungsplan</h2>
-      <p style="font-size:1.1rem; opacity:.85; margin-top:.5rem">{{ plan.client.name }}</p>
-      <p style="opacity:.7; margin-top:.3rem">{{ plan.date_created.strftime('%d.%m.%Y') }} · Ziel: {{ plan.goal }}</p>
-      <div class="cover-macro-bar" style="background:rgba(255,255,255,.15); border-radius:8px; padding:1rem 1.5rem; margin-top:2rem; display:flex; gap:2rem">
+  <div class="preview-section preview-cover" style="background: linear-gradient(135deg, {{ settings.primary_color or '#2D6A4F' }}CC, {{ settings.secondary_color or '#95D5B2' }}CC), url('/static/uploads/bg_training.png'); background-size:cover; background-position:center; color:white; padding:0 1.875rem 1.875rem">
+    <div style="text-align:center; margin-bottom:1.5rem">
+      <img src="{{ logo_url }}" alt="MANANI FIT"
+           style="max-height:255px; max-width:255px; object-fit:contain; margin-top:4.5rem;">
+    </div>
+    <div style="margin-top:2.25rem">
+      <h2 style="font-size:1.8rem; font-weight:700; color:white">Ernährungsplan</h2>
+      <p style="font-size:1.1rem; opacity:.85; margin-top:.5rem; color:white">{{ plan.client.name }}</p>
+      <p style="opacity:.7; margin-top:.3rem; color:white">{{ plan.date_created.strftime('%d.%m.%Y') }} · Ziel: {{ plan.goal }}</p>
+      <div class="cover-macro-bar" style="background:rgba(255,255,255,.15); border-radius:8px; padding:.75rem 1.5rem; margin-top:1.5rem; display:flex; gap:2rem">
         <div><div style="font-size:1.5rem;font-weight:700">{{ total_macros.kcal|round|int }}</div><div style="font-size:.8rem;opacity:.75">kcal / Tag</div></div>
         <div><div style="font-size:1.5rem;font-weight:700">{{ total_macros.protein_g|round|int }} g</div><div style="font-size:.8rem;opacity:.75">Protein</div></div>
         <div><div style="font-size:1.5rem;font-weight:700">{{ total_macros.carbs_g|round|int }} g</div><div style="font-size:.8rem;opacity:.75">Kohlenhydrate</div></div>
@@ -28,34 +31,35 @@
   </div>
 
   <!-- Mahlzeiten -->
-  <div class="preview-section">
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
     <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Mahlzeiten</h2>
+    {% if settings.variant_freedom_text %}
+    <p style="background:{{ settings.secondary_color or '#95D5B2' }}25; border-left:4px solid {{ settings.primary_color or '#2D6A4F' }}; padding:.75rem 1rem; font-size:.85rem; color:#444; border-radius:4px; margin-bottom:1rem">
+      {{ settings.variant_freedom_text }}
+    </p>
+    {% endif %}
     {% for slot in plan.meal_slots %}
-      {% set ma = slot_macros[slot.id]['A'] %}
-      {% set mb = slot_macros[slot.id]['B'] %}
       <div class="preview-meal">
         <div class="preview-meal-title" style="background:{{ settings.secondary_color or '#95D5B2' }}30; border-left:4px solid {{ settings.primary_color or '#2D6A4F' }}; padding:.5rem 1rem; display:flex; justify-content:space-between">
           <strong>{{ slot.label or 'Mahlzeit ' ~ slot.position }}</strong>
           <span style="color:#555; font-size:.9rem">{{ slot.kcal_target|round|int }} kcal</span>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:.75rem">
-          {% for variant_letter, dish_attr, macros in [
-              ('A', slot.variant_a_dish, ma),
-              ('B', slot.variant_b_dish, mb)
-          ] %}
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-top:.75rem">
+          {% for v in slot.variants %}
+            {% set macros = slot_macros[slot.id][v.variant] %}
             <div style="border:1px solid #e0e0e0; border-radius:4px; padding:.75rem">
-              <strong style="color:{{ settings.primary_color or '#2D6A4F' }}">Variante {{ variant_letter }}</strong>
-              {% if dish_attr %}
-                <p style="font-size:.9rem; margin:.3rem 0">{{ dish_attr.name }}</p>
+              <strong style="color:{{ settings.primary_color or '#2D6A4F' }}">Variante {{ v.variant }}</strong>
+              {% if v.dish %}
+                <p style="font-size:.9rem; margin:.3rem 0">{{ v.dish.name }}</p>
                 <table style="width:100%; font-size:.85rem; border-collapse:collapse">
-                  {% for ing in slot.scaled_ingredients if ing.variant == variant_letter %}
+                  {% for ing in slot.scaled_ingredients if ing.variant == v.variant %}
                   <tr style="border-bottom:1px solid #f5f5f5">
                     <td style="padding:2px 0">{{ ing.food_item.name }}</td>
                     <td style="text-align:right; white-space:nowrap; padding:2px 0">{{ ing.amount_g|round|int }} g</td>
                   </tr>
                   {% endfor %}
                 </table>
-                <p style="font-size:.8rem; color:#666; text-align:right; margin-top:.5rem">
+                <p style="font-size:.8rem; color:{{ settings.primary_color or '#2D6A4F' }}; text-align:right; margin-top:.5rem">
                   {{ macros.kcal|round|int }} kcal · P {{ macros.protein_g|round|int }} g · KH {{ macros.carbs_g|round|int }} g · F {{ macros.fat_g|round|int }} g
                 </p>
               {% else %}
@@ -69,14 +73,15 @@
   </div>
 
   <!-- Einkaufsliste -->
-  <div class="preview-section">
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
     <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Einkaufsliste</h2>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem">
-      {% for label, items in [('Variante A', shopping_a), ('Variante B', shopping_b)] %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:2rem">
+      {% for letter in variant_letters %}
+        {% set items = shopping_lists[letter] %}
         <div>
-          <h3 style="font-size:1rem; margin-bottom:.5rem">{{ label }}</h3>
+          <h3 style="font-size:1rem; margin-bottom:.5rem">Variante {{ letter }}</h3>
           <table style="width:100%; font-size:.9rem; border-collapse:collapse">
-            <tr style="background:#f5f5f5"><th style="text-align:left; padding:4px 6px">Lebensmittel</th><th style="text-align:right; padding:4px 6px">Menge</th></tr>
+            <tr style="background: linear-gradient(90deg, {{ settings.primary_color or '#2D6A4F' }}, {{ settings.secondary_color or '#95D5B2' }})"><th style="text-align:left; padding:4px 6px; color:white">Lebensmittel</th><th style="text-align:right; padding:4px 6px; color:white">Menge</th></tr>
             {% for item in items %}
             <tr style="border-bottom:1px solid #f0f0f0">
               <td style="padding:4px 6px">{{ item.name }}</td>
@@ -89,11 +94,32 @@
     </div>
   </div>
 
+  <!-- Supplements -->
+  {% if plan.include_supplements and plan.supplements %}
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
+    <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Supplements</h2>
+    <table style="width:100%; font-size:.9rem; border-collapse:collapse; max-width:600px;">
+      <tr style="background: linear-gradient(90deg, {{ settings.primary_color or '#2D6A4F' }}, {{ settings.secondary_color or '#95D5B2' }})">
+        <th style="text-align:left; padding:4px 8px; color:white">Supplement</th>
+        <th style="text-align:left; padding:4px 8px; color:white">Menge</th>
+        <th style="text-align:left; padding:4px 8px; color:white">Notiz</th>
+      </tr>
+      {% for ps in plan.supplements %}
+      <tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:4px 8px">{{ ps.supplement.name }}</td>
+        <td style="padding:4px 8px">{{ ps.amount or '—' }} {{ ps.unit_override or ps.supplement.unit if ps.amount else '' }}</td>
+        <td style="padding:4px 8px; color:#aaa">{{ ps.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
   <!-- Disclaimer -->
   {% if settings.disclaimer_text %}
-  <div class="preview-section">
+  <div class="preview-section" style="background:{{ settings.bg_color or '#FFFFFF' }}">
     <h2 class="preview-h2" style="color:{{ settings.primary_color or '#2D6A4F' }}">Hinweis</h2>
-    <p style="font-size:.85rem; color:#555; line-height:1.6">{{ settings.disclaimer_text }}</p>
+    <p style="font-size:.85rem; color:#ccc; line-height:1.6">{{ settings.disclaimer_text }}</p>
   </div>
   {% endif %}
 </div>

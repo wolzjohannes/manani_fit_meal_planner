@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtuelle Umgebung
+.venv/
+venv/
+env/
+
+# Tooling-Caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Packaging
+*.egg-info/
+build/
+dist/
+
+# Umgebung / Secrets
+.env
+.env.*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Hinweis: *.db wird bewusst versioniert (Seed-/Demo-Daten) und NICHT ignoriert.
