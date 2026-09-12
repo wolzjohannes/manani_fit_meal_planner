@@ -52,7 +52,7 @@ pip install -e .
 | macOS | `bash start_mac.sh` |
 | Windows | Double-click `start.bat` |
 
-The browser opens automatically at **http://localhost:5000**.
+The browser opens automatically at **http://localhost:5050**.
 
 ---
 
@@ -161,9 +161,9 @@ Double-click `start.bat`. If Windows Defender SmartScreen blocks it, click **Mor
 
 1. Navigate to the project folder automatically
 2. Activate the Python virtual environment
-3. Start the Flask server in the background (`http://localhost:5000`)
+3. Start the Flask server in the background (`http://localhost:5050`)
 4. Wait 2 seconds for the server to boot
-5. Open your default browser at `http://localhost:5000`
+5. Open your default browser at `http://localhost:5050`
 
 ### Starting manually (without the scripts)
 
@@ -172,7 +172,7 @@ source .venv/bin/activate   # on Windows: .venv\Scripts\activate
 python app.py
 ```
 
-Then open **http://localhost:5000** in your browser.
+Then open **http://localhost:5050** in your browser.
 
 ---
 
