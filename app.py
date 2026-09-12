@@ -45,6 +45,7 @@ from planner import (
     get_slot_macros,
     plan_variant_letters,
     remove_variant,
+    rescale_plan,
     resolve_macro_overrides,
     swap_variant,
 )
@@ -368,6 +369,7 @@ def _register_routes(app: Flask) -> None:
     def plans_update_params(plan_id: int):
         plan = MealPlan.query.get_or_404(plan_id)
         old_n_meals = plan.n_meals
+        old_kcal_target = plan.kcal_target
 
         kcal = request.form.get("kcal_target", "").strip()
         n_meals = request.form.get("n_meals", "").strip()
@@ -427,6 +429,13 @@ def _register_routes(app: Flask) -> None:
             for w in result.warnings:
                 flash(w.message, "warning")
             flash("Mahlzeiten-Anzahl geändert — Plan neu generiert.", "success")
+        elif plan.kcal_target != old_kcal_target:
+            # Kcal-Ziel geändert: bestehende Mahlzeiten auf neues Ziel umskalieren
+            db.session.commit()
+            warnings = rescale_plan(plan)
+            for w in warnings:
+                flash(w.message, "warning")
+            flash("Plan-Einstellungen gespeichert — Mahlzeiten neu skaliert.", "success")
         else:
             # Nur Parameter speichern, keine Neugenierung
             db.session.commit()

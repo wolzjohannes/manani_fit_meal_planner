@@ -537,6 +537,50 @@ def _validate_daily_macros(
             )
 
 
+def rescale_plan(plan: MealPlan) -> list[ValidationWarning]:
+    """Skaliert alle bestehenden Mahlzeiten eines Plans auf ein geändertes Kcal-Ziel neu.
+
+    Im Gegensatz zu generate_plan() werden die bereits gewählten Gerichte je Variante
+    beibehalten — nur die skalierten Zutatenmengen/Makros und die Slot-Kcal-Ziele werden
+    aktualisiert.
+    """
+    warnings: list[ValidationWarning] = []
+    slots = sorted(plan.meal_slots, key=lambda s: s.position)
+
+    slots_data = [
+        {"guidelines_text": slot.guidelines_text or "", "label": slot.label}
+        for slot in slots
+    ]
+    kcal_targets = _slot_kcal_targets(float(plan.kcal_target), slots_data)
+
+    for slot, slot_kcal in zip(slots, kcal_targets, strict=True):
+        slot.kcal_target = round(slot_kcal, 1)
+
+        for mv in slot.variants:
+            if mv.dish is None:
+                continue
+
+            for ing in list(slot.scaled_ingredients):
+                if ing.variant == mv.variant:
+                    db.session.delete(ing)
+            db.session.flush()
+
+            for ing in _scale_dish(
+                mv.dish, slot_kcal, mv.variant, slot.id, warnings, slot.position
+            ):
+                db.session.add(ing)
+
+    db.session.flush()
+    for slot in slots:
+        db.session.expire(slot, ["scaled_ingredients"])
+
+    tolerance_pct = float(AppSettings.get("macro_tolerance_pct", 5))
+    _validate_daily_macros(plan, warnings, tolerance_pct)
+
+    db.session.commit()
+    return warnings
+
+
 def get_slot_macros(slot: MealSlot, variant: str) -> MacroSplit:
     """Summiert die skalierten Makros eines MealSlots für eine Variante."""
     ings = [i for i in slot.scaled_ingredients if i.variant == variant]
