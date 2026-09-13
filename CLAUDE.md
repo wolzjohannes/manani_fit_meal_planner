@@ -21,7 +21,7 @@ pip install -e .          # aus pyproject.toml installieren
 
 ```bash
 # Entwicklungsserver
-python app.py             # → http://localhost:5000 (debug=True)
+python app.py             # → http://localhost:5050 (debug=True)
 
 # Linting
 ruff check .
