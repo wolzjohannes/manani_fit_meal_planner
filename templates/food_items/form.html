@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{% if food_item %}{{ food_item.name }} bearbeiten{% else %}Neue Zutat{% endif %} · MANANI FIT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{% if food_item %}Zutat bearbeiten{% else %}Neue Zutat{% endif %}</h1>
+</div>
+
+<form method="post" class="form-card">
+  <div class="form-section">
+    <h2>Nährwerte (pro 100 g)</h2>
+    <div class="form-grid">
+      <div class="form-group form-group--full">
+        <label for="name">Name *</label>
+        <input type="text" id="name" name="name" required
+               value="{{ food_item.name if food_item else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="kcal_per_100g">kcal *</label>
+        <input type="number" id="kcal_per_100g" name="kcal_per_100g" required
+               min="0" step="0.1"
+               value="{{ food_item.kcal_per_100g if food_item else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="protein_per_100g">Protein (g)</label>
+        <input type="number" id="protein_per_100g" name="protein_per_100g"
+               min="0" step="0.1"
+               value="{{ food_item.protein_per_100g if food_item else 0 }}">
+      </div>
+      <div class="form-group">
+        <label for="carbs_per_100g">Kohlenhydrate (g)</label>
+        <input type="number" id="carbs_per_100g" name="carbs_per_100g"
+               min="0" step="0.1"
+               value="{{ food_item.carbs_per_100g if food_item else 0 }}">
+      </div>
+      <div class="form-group">
+        <label for="fat_per_100g">Fett (g)</label>
+        <input type="number" id="fat_per_100g" name="fat_per_100g"
+               min="0" step="0.1"
+               value="{{ food_item.fat_per_100g if food_item else 0 }}">
+      </div>
+      <div class="form-group form-group--full">
+        <label for="allergens">Allergene (kommagetrennt)</label>
+        <input type="text" id="allergens" name="allergens"
+               placeholder="z.B. milch, gluten, nüsse"
+               value="{{ food_item.get_allergens()|join(', ') if food_item else '' }}">
+      </div>
+      <div class="form-group form-group--full">
+        <label style="display:flex; align-items:center; gap:.5rem; cursor:pointer;">
+          <input type="checkbox" name="is_supplement"
+                 {% if food_item and food_item.is_supplement %}checked{% endif %}>
+          Ist ein Supplement
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn--primary">Speichern</button>
+    <a href="{{ url_for('food_items_list') }}" class="btn btn--ghost">Abbrechen</a>
+  </div>
+</form>
+{% endblock %}

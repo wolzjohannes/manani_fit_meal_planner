@@ -753,6 +753,68 @@ def _register_routes(app: Flask) -> None:
         return dish
 
     # ------------------------------------------------------------------ #
+    # Zutaten (FoodItems)                                                  #
+    # ------------------------------------------------------------------ #
+
+    @app.route("/food_items")
+    def food_items_list():
+        search = request.args.get("search", "").strip()
+        supplements_only = request.args.get("supplements_only", "") == "1"
+        query = FoodItem.query.filter_by(is_active=True)
+        if search:
+            query = query.filter(FoodItem.name.ilike(f"%{search}%"))
+        if supplements_only:
+            query = query.filter_by(is_supplement=True)
+        food_items = query.order_by(FoodItem.name).all()
+        return render_template(
+            "food_items/list.html",
+            food_items=food_items,
+            search=search,
+            supplements_only=supplements_only,
+        )
+
+    @app.route("/food_items/new", methods=["GET", "POST"])
+    def food_items_new():
+        if request.method == "POST":
+            food_item = _food_item_from_form(FoodItem())
+            db.session.add(food_item)
+            db.session.commit()
+            flash(f'Zutat „{food_item.name}" angelegt.', "success")
+            return redirect(url_for("food_items_list"))
+        return render_template("food_items/form.html", food_item=None)
+
+    @app.route("/food_items/<int:food_item_id>/edit", methods=["GET", "POST"])
+    def food_items_edit(food_item_id: int):
+        food_item = db.get_or_404(FoodItem, food_item_id)
+        if request.method == "POST":
+            _food_item_from_form(food_item)
+            db.session.commit()
+            flash("Zutat aktualisiert.", "success")
+            return redirect(url_for("food_items_list"))
+        return render_template("food_items/form.html", food_item=food_item)
+
+    @app.route("/food_items/<int:food_item_id>/delete", methods=["POST"])
+    def food_items_delete(food_item_id: int):
+        food_item = db.get_or_404(FoodItem, food_item_id)
+        food_item.is_active = False
+        db.session.commit()
+        flash(f'Zutat „{food_item.name}" gelöscht.', "success")
+        return redirect(url_for("food_items_list"))
+
+    def _food_item_from_form(food_item: FoodItem) -> FoodItem:
+        food_item.name = request.form["name"].strip()
+        food_item.kcal_per_100g = float(request.form["kcal_per_100g"])
+        food_item.protein_per_100g = float(request.form.get("protein_per_100g") or 0)
+        food_item.carbs_per_100g = float(request.form.get("carbs_per_100g") or 0)
+        food_item.fat_per_100g = float(request.form.get("fat_per_100g") or 0)
+        allergens_raw = request.form.get("allergens", "").strip()
+        food_item.set_allergens(
+            [a.strip() for a in allergens_raw.split(",") if a.strip()]
+        )
+        food_item.is_supplement = "is_supplement" in request.form
+        return food_item
+
+    # ------------------------------------------------------------------ #
     # Settings                                                             #
     # ------------------------------------------------------------------ #
 

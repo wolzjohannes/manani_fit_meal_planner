@@ -28,6 +28,7 @@ A web application for fitness coaches to create personalized meal plans with mac
 | PDF export | Branded PDF with macro pie charts (incl. macro/kcal explainer), shopping list, and coach disclaimer |
 | Shopping list | Auto-generated ingredient list with scaled quantities per plan, per variant |
 | Multiple variants | Generation creates two variants (A/B) per meal; add or remove further variants (C, D, …) on the edit screen |
+| Ingredient management | Add, edit, or deactivate food items (nutrients per 100 g) under *Zutaten* — no need to touch the seed data to add a missing ingredient |
 | Branding settings | Customize logo, colors, coach name, disclaimer, and the "own variants" hint text under Settings |
 
 ---
@@ -189,6 +190,10 @@ Then open **http://localhost:5050** in your browser.
 ## Expanding the Dish Database
 
 The app automatically seeds ~500 dishes and 109 food items on first launch (when the database is empty).
+
+To add a single missing ingredient (food item), you don't need to touch the seed data —
+go to *Zutaten* → *+ Neue Zutat* in the app, or click *+ Neue Zutat anlegen* directly from
+the dish-creation form. Re-seeding below is only needed for bulk changes.
 
 To regenerate the database after a reset, or to re-run the seed script with updated data:
 
