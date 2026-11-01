@@ -39,6 +39,7 @@ from planner import (
     GenerationResult,
     add_variant,
     calculate_macros,
+    duplicate_plan,
     generate_plan,
     get_plan_total_macros,
     get_shopping_list,
@@ -473,31 +474,9 @@ def _register_routes(app: Flask) -> None:
 
     @app.route("/plans/<int:plan_id>/duplicate", methods=["POST"])
     def plans_duplicate(plan_id: int):
-        original = MealPlan.query.get_or_404(plan_id)
-        new_plan = MealPlan(
-            client_id=original.client_id,
-            name=f"Kopie · {original.name}",
-            kcal_target=original.kcal_target,
-            n_meals=original.n_meals,
-            goal=original.goal,
-            notes=original.notes,
-            include_supplements=original.include_supplements,
-            macro_overrides=original.macro_overrides,
-            status="draft",
-        )
-        db.session.add(new_plan)
-        db.session.flush()
-        slots_data = [
-            {
-                "guidelines_text": s.guidelines_text or "",
-                "label": s.label or f"Mahlzeit {s.position}",
-            }
-            for s in sorted(original.meal_slots, key=lambda s: s.position)
-        ]
-        result = generate_plan(new_plan, slots_data)
+        original = db.get_or_404(MealPlan, plan_id)
+        new_plan = duplicate_plan(original)
         db.session.commit()
-        for w in result.warnings:
-            flash(w.message, "warning")
         flash(f"Plan dupliziert: {new_plan.name}", "success")
         return redirect(url_for("plans_edit", plan_id=new_plan.id))
 
