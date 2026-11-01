@@ -13,6 +13,7 @@ from models import (
     MealSlot,
     MealVariant,
     PlanDishIngredient,
+    PlanSupplement,
     db,
 )
 
@@ -738,3 +739,78 @@ def remove_variant(slot: MealSlot, variant: str) -> None:
             mv_remaining.variant = new_letter
 
     db.session.commit()
+
+
+def duplicate_plan(original: MealPlan) -> MealPlan:
+    """Erstellt eine 1:1-Kopie eines Plans inkl. Varianten, Zutaten und Supplements.
+
+    Nichts wird neu generiert: Gerichte, skalierte Mengen und Supplements werden
+    exakt übernommen, damit manuelle Anpassungen erhalten bleiben. Der Aufrufer
+    ist für den ``commit()`` zuständig.
+
+    Args:
+        original: Der zu kopierende Plan.
+
+    Returns:
+        Der neue Plan (Status "draft", Name mit Präfix "Kopie · ").
+    """
+    new_plan = MealPlan(
+        client_id=original.client_id,
+        name=f"Kopie · {original.name}",
+        kcal_target=original.kcal_target,
+        n_meals=original.n_meals,
+        goal=original.goal,
+        notes=original.notes,
+        include_supplements=original.include_supplements,
+        macro_overrides=original.macro_overrides,
+        status="draft",
+    )
+    db.session.add(new_plan)
+    db.session.flush()
+
+    for slot in sorted(original.meal_slots, key=lambda s: s.position):
+        new_slot = MealSlot(
+            plan_id=new_plan.id,
+            position=slot.position,
+            label=slot.label,
+            kcal_target=slot.kcal_target,
+            guidelines_text=slot.guidelines_text,
+        )
+        db.session.add(new_slot)
+        db.session.flush()
+
+        for mv in slot.variants:
+            db.session.add(
+                MealVariant(
+                    meal_slot_id=new_slot.id,
+                    variant=mv.variant,
+                    dish_id=mv.dish_id,
+                )
+            )
+        for ing in slot.scaled_ingredients:
+            db.session.add(
+                PlanDishIngredient(
+                    meal_slot_id=new_slot.id,
+                    variant=ing.variant,
+                    food_item_id=ing.food_item_id,
+                    amount_g=ing.amount_g,
+                    kcal=ing.kcal,
+                    protein_g=ing.protein_g,
+                    carbs_g=ing.carbs_g,
+                    fat_g=ing.fat_g,
+                )
+            )
+
+    for ps in original.supplements:
+        db.session.add(
+            PlanSupplement(
+                plan_id=new_plan.id,
+                supplement_id=ps.supplement_id,
+                amount=ps.amount,
+                unit_override=ps.unit_override,
+                note=ps.note,
+                position=ps.position,
+            )
+        )
+
+    return new_plan

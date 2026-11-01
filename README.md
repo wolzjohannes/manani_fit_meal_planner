@@ -28,6 +28,7 @@ A web application for fitness coaches to create personalized meal plans with mac
 | PDF export | Branded PDF with macro pie charts (incl. macro/kcal explainer), shopping list, and coach disclaimer |
 | Shopping list | Auto-generated ingredient list with scaled quantities per plan, per variant |
 | Multiple variants | Generation creates two variants (A/B) per meal; add or remove further variants (C, D, …) on the edit screen |
+| Plan duplication | *Duplizieren* creates an exact copy of a plan (dishes, variants, scaled quantities, supplements) — nothing is regenerated, so manual edits are preserved |
 | Ingredient management | Add, edit, or deactivate food items (nutrients per 100 g) under *Zutaten* — no need to touch the seed data to add a missing ingredient |
 | Branding settings | Customize logo, colors, coach name, disclaimer, and the "own variants" hint text under Settings |
 
